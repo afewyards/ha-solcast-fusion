@@ -16,3 +16,6 @@ jobs:
         uses: "hacs/action@main"
         with:
           category: "integration"
+          # 'brands' requires the domain to be registered in home-assistant/brands;
+          # ignore until a brands PR is submitted. See README for the follow-up.
+          ignore: "brands"
