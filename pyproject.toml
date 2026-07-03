@@ -89,3 +89,21 @@ reportUnusedFunction = false
 
 [tool.pyright.defineConstant]
 TYPE_CHECKING = true
+
+[tool.semantic_release]
+major_on_zero = false
+version_toml = ["pyproject.toml:project.version"]
+version_variables = [
+    "custom_components/ha_solcast_fusion/manifest.json:version"
+]
+tag_format = "v{version}"
+commit_message = "chore(release): {version}"
+build_command = ""
+
+[tool.semantic_release.changelog]
+changelog_file = ""
+
+[tool.semantic_release.commit_parser_options]
+allowed_tags = ["feat", "fix", "docs", "style", "refactor", "perf", "test", "chore"]
+minor_tags = ["feat"]
+patch_tags = ["fix", "perf"]
