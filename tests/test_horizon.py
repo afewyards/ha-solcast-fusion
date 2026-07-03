@@ -11,8 +11,8 @@ def test_load_empty_returns_none():
 
 
 def test_horizon_at_interpolates():
-    prof = [0.0, 20.0, 0.0, 0.0]              # N=0,E=20,S=0,W=0 (step 90)
-    assert abs(h.horizon_at(prof, 45) - 10.0) < 1e-9   # halfway N→E
+    prof = [0.0, 20.0, 0.0, 0.0]  # N=0,E=20,S=0,W=0 (step 90)
+    assert abs(h.horizon_at(prof, 45) - 10.0) < 1e-9  # halfway N→E
 
 
 def test_is_shaded():

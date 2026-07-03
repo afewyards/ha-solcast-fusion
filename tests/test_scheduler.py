@@ -1,10 +1,12 @@
 import sys
 from unittest.mock import MagicMock
 
+
 # Provide a real base class so OpenMeteoCoordinator(DataUpdateCoordinator) can be defined
 class _FakeDUC:
     def __init__(self, *args, **kwargs):
         pass
+
 
 _duc_mod = MagicMock()
 _duc_mod.DataUpdateCoordinator = _FakeDUC
@@ -21,13 +23,13 @@ for _name, _mod in [
 ]:
     sys.modules.setdefault(_name, _mod)
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, UTC
 
 from custom_components.ha_solcast_fusion.coordinator import next_due, solcast_interval
 
-NOW = datetime(2026, 6, 30, 12, 0, tzinfo=timezone.utc)
-SUNRISE = datetime(2026, 6, 30, 5, 0, tzinfo=timezone.utc)
-SUNSET = datetime(2026, 6, 30, 21, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 6, 30, 12, 0, tzinfo=UTC)
+SUNRISE = datetime(2026, 6, 30, 5, 0, tzinfo=UTC)
+SUNSET = datetime(2026, 6, 30, 21, 0, tzinfo=UTC)
 
 
 def test_solcast_interval():
@@ -36,7 +38,7 @@ def test_solcast_interval():
 
 
 def test_next_due_none_at_night():
-    night = datetime(2026, 6, 30, 22, 0, tzinfo=timezone.utc)
+    night = datetime(2026, 6, 30, 22, 0, tzinfo=UTC)
     assert next_due(night, SUNRISE, SUNSET, 6, 2, None, timedelta(hours=3)) is None
 
 

@@ -5,9 +5,10 @@ x1 source pin: c898b0d90764de522124f97473ac46c6676c02e2
   parsers.py:11-18        (_parse_dt)
   coordinator.py:209-220  (_read_pv_watts summing loop)
 """
+
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 
 import pytest
 
@@ -16,20 +17,22 @@ import pytest
 # x1@c898b0d parsers.py:11-18
 # ---------------------------------------------------------------------------
 
+
 def _parse_dt(value: str) -> datetime | None:
     try:
         dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
     except (ValueError, TypeError):
         return None
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC)
 
 
 # ---------------------------------------------------------------------------
 # Mirrored x1-smartcharge _read_pv_watts inner summing loop
 # x1@c898b0d coordinator.py:209-220
 # ---------------------------------------------------------------------------
+
 
 def _x1_consume_watts(watts_dict: dict) -> list[tuple[datetime, float]]:
     """Simulate x1's per-array watts consumption for a single watts dict."""
@@ -50,7 +53,7 @@ def _x1_consume_watts(watts_dict: dict) -> list[tuple[datetime, float]]:
 # Fixtures
 # ---------------------------------------------------------------------------
 
-NOON_UTC = datetime(2024, 6, 15, 12, 0, 0, tzinfo=timezone.utc)
+NOON_UTC = datetime(2024, 6, 15, 12, 0, 0, tzinfo=UTC)
 
 # Simulates SolcastFusion coordinator.py:151 output:
 #   data["watts"] = {t.isoformat(): w for t, w in masked.items()}
@@ -104,7 +107,7 @@ def test_sf_emits_tz_aware_keys():
     A regression to naive-local datetimes would produce local-offset keys that x1
     _parse_dt converts to UTC, silently time-shifting the entire curve.
     """
-    t = datetime(2024, 6, 15, 12, 0, 0, tzinfo=timezone.utc)
+    t = datetime(2024, 6, 15, 12, 0, 0, tzinfo=UTC)
     emitted_key = t.isoformat()
 
     assert "+" in emitted_key or emitted_key.endswith("Z"), (

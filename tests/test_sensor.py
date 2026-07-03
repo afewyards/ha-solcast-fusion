@@ -1,5 +1,6 @@
 """Tests for ha_solcast_fusion sensor platform."""
-from datetime import datetime, timezone
+
+from datetime import datetime, timezone, UTC
 from unittest.mock import MagicMock
 
 from homeassistant.const import EntityCategory
@@ -14,15 +15,15 @@ from custom_components.ha_solcast_fusion.sensor import (
 # Fixtures
 # ---------------------------------------------------------------------------
 
-NOW = datetime(2026, 6, 30, 12, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 6, 30, 12, 0, tzinfo=UTC)
 
 SAMPLE_DATA = {
     "today_kwh": 5.2,
     "today_remaining_kwh": 3.1,
     "tomorrow_kwh": 6.0,
     "power_now": 1500.0,
-    "peak_time_today": datetime(2026, 6, 30, 11, 30, tzinfo=timezone.utc),
-    "peak_time_tomorrow": datetime(2026, 7, 1, 12, 0, tzinfo=timezone.utc),
+    "peak_time_today": datetime(2026, 6, 30, 11, 30, tzinfo=UTC),
+    "peak_time_tomorrow": datetime(2026, 7, 1, 12, 0, tzinfo=UTC),
     "current_hour_kwh": 0.75,
     "next_hour_kwh": 0.80,
     "watts": {
@@ -33,7 +34,7 @@ SAMPLE_DATA = {
     "source": "blended",
     "correction_factor": 0.95,
     "solcast_calls_remaining": 6,
-    "last_solcast_update": datetime(2026, 6, 30, 9, 0, tzinfo=timezone.utc),
+    "last_solcast_update": datetime(2026, 6, 30, 9, 0, tzinfo=UTC),
     "pct_periods_clamped": 0.05,
 }
 

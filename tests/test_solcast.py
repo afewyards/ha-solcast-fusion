@@ -1,18 +1,14 @@
 import pytest
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from unittest.mock import AsyncMock, MagicMock
 
 from custom_components.ha_solcast_fusion.solcast import fetch_forecast, SolcastAuthError, SolcastError
 
 SITE = "abc-123"
 KEY = "my-api-key"
-FORECAST_JSON = {
-    "forecasts": [
-        {"period_end": "2026-06-30T10:30:00Z", "pv_estimate": 2.0}
-    ]
-}
+FORECAST_JSON = {"forecasts": [{"period_end": "2026-06-30T10:30:00Z", "pv_estimate": 2.0}]}
 # period_end - 30min = 10:00 UTC; pv_estimate * 1000 = 2000.0
-EXPECTED_DT = datetime(2026, 6, 30, 10, 0, tzinfo=timezone.utc)
+EXPECTED_DT = datetime(2026, 6, 30, 10, 0, tzinfo=UTC)
 
 
 def _make_session(status, json_body):
@@ -81,8 +77,13 @@ from custom_components.ha_solcast_fusion.solcast import (
     SolcastSiteError,
 )
 from custom_components.ha_solcast_fusion.const import (
-    CONF_LAT, CONF_LON, CONF_DECLINATION, CONF_AZIMUTH,
-    CONF_DC_W, CONF_AC_W, CONF_SOLCAST_SITE,
+    CONF_LAT,
+    CONF_LON,
+    CONF_DECLINATION,
+    CONF_AZIMUTH,
+    CONF_DC_W,
+    CONF_AC_W,
+    CONF_SOLCAST_SITE,
 )
 
 SITES_JSON = {
@@ -146,8 +147,8 @@ def test_site_to_config_maps_fields():
     assert cfg[CONF_LAT] == pytest.approx(-33.856784)
     assert cfg[CONF_LON] == pytest.approx(151.215297)
     assert cfg[CONF_DECLINATION] == 30
-    assert cfg[CONF_DC_W] == 6200          # capacity_dc * 1000
-    assert cfg[CONF_AC_W] == 5000          # capacity * 1000
+    assert cfg[CONF_DC_W] == 6200  # capacity_dc * 1000
+    assert cfg[CONF_AC_W] == 5000  # capacity * 1000
     assert cfg[CONF_SOLCAST_SITE] == "abc-123"
 
 
@@ -182,7 +183,7 @@ def test_site_to_config_capacity_dc_missing_falls_back_to_ac():
     site = {**SITES_JSON["sites"][0]}
     del site["capacity_dc"]
     cfg = site_to_config(site)
-    assert cfg[CONF_DC_W] == 5000          # falls back to capacity (AC) * 1000
+    assert cfg[CONF_DC_W] == 5000  # falls back to capacity (AC) * 1000
 
 
 def test_site_to_config_no_capacity_raises():

@@ -1,8 +1,9 @@
 """SolcastFusion Home Assistant integration."""
+
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -37,7 +38,7 @@ async def async_setup_entry(hass, config_entry) -> bool:
 
     pending_calls = config_entry.data.get(CONF_SETUP_QUOTA_CALLS, 0)
     if pending_calls:
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         await store.reset_if_new_utc_day(now)
         await store.bump_quota(now, pending_calls)
         await store.save_now()
@@ -61,12 +62,8 @@ async def async_setup_entry(hass, config_entry) -> bool:
     async def _run_mirror(now=None):
         await async_mirror_check(hass, config_entry, config, store, session, coordinator)
 
-    config_entry.async_on_unload(
-        async_track_time_change(hass, _run_mirror, hour=0, minute=5, second=0)
-    )
-    config_entry.async_create_background_task(
-        hass, _run_mirror(), "ha_solcast_fusion_mirror_startup"
-    )
+    config_entry.async_on_unload(async_track_time_change(hass, _run_mirror, hour=0, minute=5, second=0))
+    config_entry.async_create_background_task(hass, _run_mirror(), "ha_solcast_fusion_mirror_startup")
 
     await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
     return True

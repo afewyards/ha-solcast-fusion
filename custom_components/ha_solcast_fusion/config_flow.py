@@ -58,9 +58,7 @@ class SolcastFusionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return await self._async_key_step(user_input)
 
     async def async_step_reconfigure(self, user_input=None):
-        self._reconfigure_entry = self.hass.config_entries.async_get_entry(
-            self.context["entry_id"]
-        )
+        self._reconfigure_entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
         return await self._async_key_step(user_input)
 
     async def _async_key_step(self, user_input):
@@ -80,7 +78,7 @@ class SolcastFusionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "solcast_busy"
             except SolcastError:
                 errors["base"] = "cannot_connect"
-            except Exception:  # noqa: BLE001
+            except Exception:
                 errors["base"] = "unknown"
             else:
                 if not sites:
@@ -89,16 +87,12 @@ class SolcastFusionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     self._data[CONF_SOLCAST_KEY] = key
                     self._sites = sites
                     if len(sites) == 1:
-                        return await self.async_step_site(
-                            {CONF_SOLCAST_SITE: sites[0]["resource_id"]}
-                        )
+                        return await self.async_step_site({CONF_SOLCAST_SITE: sites[0]["resource_id"]})
                     return await self.async_step_site()
 
         return self.async_show_form(
             step_id="user",
-            data_schema=vol.Schema(
-                {vol.Required(CONF_SOLCAST_KEY, default=current_key): str}
-            ),
+            data_schema=vol.Schema({vol.Required(CONF_SOLCAST_KEY, default=current_key): str}),
             errors=errors,
         )
 
@@ -130,9 +124,7 @@ class SolcastFusionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 new_data = {**self._reconfigure_entry.data, **self._data}
                 if CONF_AC_W not in self._data:
                     new_data.pop(CONF_AC_W, None)
-                return self.async_update_reload_and_abort(
-                    self._reconfigure_entry, data=new_data
-                )
+                return self.async_update_reload_and_abort(self._reconfigure_entry, data=new_data)
             return self.async_create_entry(title="SolcastFusion", data=self._data)
 
         placeholders = {
@@ -162,35 +154,21 @@ def _options_schema(opts: dict) -> vol.Schema:
     return vol.Schema(
         {
             vol.Optional(CONF_HORIZON_FILE, default=opts.get(CONF_HORIZON_FILE, "")): str,
-            vol.Optional(CONF_DIFFUSE, default=_d(CONF_DIFFUSE)): vol.All(
-                vol.Coerce(float), vol.Range(0.0, 1.0)
-            ),
-            vol.Optional(CONF_K_MIN, default=_d(CONF_K_MIN)): vol.All(
-                vol.Coerce(float), vol.Range(0.0, 5.0)
-            ),
-            vol.Optional(CONF_K_MAX, default=_d(CONF_K_MAX)): vol.All(
-                vol.Coerce(float), vol.Range(0.0, 5.0)
-            ),
+            vol.Optional(CONF_DIFFUSE, default=_d(CONF_DIFFUSE)): vol.All(vol.Coerce(float), vol.Range(0.0, 1.0)),
+            vol.Optional(CONF_K_MIN, default=_d(CONF_K_MIN)): vol.All(vol.Coerce(float), vol.Range(0.0, 5.0)),
+            vol.Optional(CONF_K_MAX, default=_d(CONF_K_MAX)): vol.All(vol.Coerce(float), vol.Range(0.0, 5.0)),
             vol.Optional(
                 CONF_DECAY_HALFLIFE_H,
                 default=_d(CONF_DECAY_HALFLIFE_H),
                 description=_DECAY_DESC,
             ): vol.All(vol.Coerce(float), vol.Range(0.0, 100.0)),
-            vol.Optional(CONF_DAMP_AM, default=_d(CONF_DAMP_AM)): vol.All(
-                vol.Coerce(float), vol.Range(0.0, 1.0)
-            ),
-            vol.Optional(CONF_DAMP_PM, default=_d(CONF_DAMP_PM)): vol.All(
-                vol.Coerce(float), vol.Range(0.0, 1.0)
-            ),
-            vol.Optional(CONF_EFFICIENCY, default=_d(CONF_EFFICIENCY)): vol.All(
-                vol.Coerce(float), vol.Range(0.0, 1.0)
-            ),
+            vol.Optional(CONF_DAMP_AM, default=_d(CONF_DAMP_AM)): vol.All(vol.Coerce(float), vol.Range(0.0, 1.0)),
+            vol.Optional(CONF_DAMP_PM, default=_d(CONF_DAMP_PM)): vol.All(vol.Coerce(float), vol.Range(0.0, 1.0)),
+            vol.Optional(CONF_EFFICIENCY, default=_d(CONF_EFFICIENCY)): vol.All(vol.Coerce(float), vol.Range(0.0, 1.0)),
             vol.Optional(CONF_OM_INTERVAL_MIN, default=_d(CONF_OM_INTERVAL_MIN)): vol.All(
                 vol.Coerce(int), vol.Range(1, 60)
             ),
-            vol.Optional(CONF_SOLCAST_CAP, default=_d(CONF_SOLCAST_CAP)): vol.All(
-                vol.Coerce(int), vol.Range(1, 50)
-            ),
+            vol.Optional(CONF_SOLCAST_CAP, default=_d(CONF_SOLCAST_CAP)): vol.All(vol.Coerce(int), vol.Range(1, 50)),
             vol.Optional(CONF_SOLCAST_RESERVE, default=_d(CONF_SOLCAST_RESERVE)): vol.All(
                 vol.Coerce(int), vol.Range(0, 50)
             ),

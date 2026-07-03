@@ -1,4 +1,5 @@
 """Tests for SolcastFusion config flow (key -> pick -> confirm)."""
+
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -34,7 +35,7 @@ SITE_A = {
     "longitude": -0.1,
     "capacity": 4.6,
     "capacity_dc": 5.0,
-    "azimuth": 180,      # south -> compass 180
+    "azimuth": 180,  # south -> compass 180
     "tilt": 30,
 }
 SITE_B = {
@@ -44,7 +45,7 @@ SITE_B = {
     "longitude": 4.0,
     "capacity": 3.0,
     "capacity_dc": 3.3,
-    "azimuth": -90,      # east -> compass 90
+    "azimuth": -90,  # east -> compass 90
     "tilt": 20,
 }
 SITE_NO_AC = {
@@ -60,25 +61,20 @@ SITE_NO_AC = {
 
 
 async def _init(hass):
-    return await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
+    return await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
 
 
 @pytest.mark.asyncio
 async def test_multi_site_flow_creates_entry(hass):
-    with patch(_PATCH, new=AsyncMock(return_value=[SITE_A, SITE_B])), \
-         patch("custom_components.ha_solcast_fusion.mirror.fetch_sites",
-               new=AsyncMock(return_value=[])):
+    with (
+        patch(_PATCH, new=AsyncMock(return_value=[SITE_A, SITE_B])),
+        patch("custom_components.ha_solcast_fusion.mirror.fetch_sites", new=AsyncMock(return_value=[])),
+    ):
         r = await _init(hass)
         assert r["step_id"] == "user"
-        r = await hass.config_entries.flow.async_configure(
-            r["flow_id"], {CONF_SOLCAST_KEY: "k"}
-        )
+        r = await hass.config_entries.flow.async_configure(r["flow_id"], {CONF_SOLCAST_KEY: "k"})
         assert r["step_id"] == "site"
-        r = await hass.config_entries.flow.async_configure(
-            r["flow_id"], {CONF_SOLCAST_SITE: "site-b"}
-        )
+        r = await hass.config_entries.flow.async_configure(r["flow_id"], {CONF_SOLCAST_SITE: "site-b"})
         assert r["step_id"] == "confirm"
         r = await hass.config_entries.flow.async_configure(r["flow_id"], {})
         # CREATE_ENTRY auto-sets-up the entry, which kicks off the mirror's
@@ -89,20 +85,19 @@ async def test_multi_site_flow_creates_entry(hass):
     assert r["type"] == FlowResultType.CREATE_ENTRY
     assert r["data"][CONF_SOLCAST_SITE] == "site-b"
     assert r["data"][CONF_SOLCAST_KEY] == "k"
-    assert r["data"][CONF_AZIMUTH] == 90          # Solcast -90 -> compass 90
+    assert r["data"][CONF_AZIMUTH] == 90  # Solcast -90 -> compass 90
     assert r["data"][CONF_DECLINATION] == 20
     assert r["data"][CONF_DC_W] == 3300
 
 
 @pytest.mark.asyncio
 async def test_single_site_skips_picker(hass):
-    with patch(_PATCH, new=AsyncMock(return_value=[SITE_A])), \
-         patch("custom_components.ha_solcast_fusion.mirror.fetch_sites",
-               new=AsyncMock(return_value=[])):
+    with (
+        patch(_PATCH, new=AsyncMock(return_value=[SITE_A])),
+        patch("custom_components.ha_solcast_fusion.mirror.fetch_sites", new=AsyncMock(return_value=[])),
+    ):
         r = await _init(hass)
-        r = await hass.config_entries.flow.async_configure(
-            r["flow_id"], {CONF_SOLCAST_KEY: "k"}
-        )
+        r = await hass.config_entries.flow.async_configure(r["flow_id"], {CONF_SOLCAST_KEY: "k"})
         # No picker form — jumps straight to confirm.
         assert r["step_id"] == "confirm"
         r = await hass.config_entries.flow.async_configure(r["flow_id"], {})
@@ -116,9 +111,7 @@ async def test_single_site_skips_picker(hass):
 async def test_confirm_shows_mapped_geometry(hass):
     with patch(_PATCH, new=AsyncMock(return_value=[SITE_A])):
         r = await _init(hass)
-        r = await hass.config_entries.flow.async_configure(
-            r["flow_id"], {CONF_SOLCAST_KEY: "k"}
-        )
+        r = await hass.config_entries.flow.async_configure(r["flow_id"], {CONF_SOLCAST_KEY: "k"})
     assert r["step_id"] == "confirm"
     ph = r["description_placeholders"]
     assert ph[CONF_AZIMUTH] == "180"
@@ -129,9 +122,7 @@ async def test_confirm_shows_mapped_geometry(hass):
 async def test_no_sites_error(hass):
     with patch(_PATCH, new=AsyncMock(return_value=[])):
         r = await _init(hass)
-        r = await hass.config_entries.flow.async_configure(
-            r["flow_id"], {CONF_SOLCAST_KEY: "k"}
-        )
+        r = await hass.config_entries.flow.async_configure(r["flow_id"], {CONF_SOLCAST_KEY: "k"})
     assert r["step_id"] == "user"
     assert r["errors"]["base"] == "no_sites"
 
@@ -140,9 +131,7 @@ async def test_no_sites_error(hass):
 async def test_invalid_auth_error(hass):
     with patch(_PATCH, new=AsyncMock(side_effect=SolcastAuthError("401"))):
         r = await _init(hass)
-        r = await hass.config_entries.flow.async_configure(
-            r["flow_id"], {CONF_SOLCAST_KEY: "bad"}
-        )
+        r = await hass.config_entries.flow.async_configure(r["flow_id"], {CONF_SOLCAST_KEY: "bad"})
     assert r["step_id"] == "user"
     assert r["errors"]["base"] == "invalid_auth"
 
@@ -151,9 +140,7 @@ async def test_invalid_auth_error(hass):
 async def test_busy_error(hass):
     with patch(_PATCH, new=AsyncMock(side_effect=SolcastBusyError("429"))):
         r = await _init(hass)
-        r = await hass.config_entries.flow.async_configure(
-            r["flow_id"], {CONF_SOLCAST_KEY: "k"}
-        )
+        r = await hass.config_entries.flow.async_configure(r["flow_id"], {CONF_SOLCAST_KEY: "k"})
     assert r["step_id"] == "user"
     assert r["errors"]["base"] == "solcast_busy"
 
@@ -163,9 +150,7 @@ async def test_invalid_site_error(hass):
     bad = {**SITE_A, "capacity": None, "capacity_dc": None}
     with patch(_PATCH, new=AsyncMock(return_value=[bad])):
         r = await _init(hass)
-        r = await hass.config_entries.flow.async_configure(
-            r["flow_id"], {CONF_SOLCAST_KEY: "k"}
-        )
+        r = await hass.config_entries.flow.async_configure(r["flow_id"], {CONF_SOLCAST_KEY: "k"})
     # Single-site auto-select maps immediately -> invalid_site on the picker step.
     assert r["step_id"] == "site"
     assert r["errors"]["base"] == "invalid_site"
@@ -176,21 +161,24 @@ async def test_reconfigure_updates_entry(hass):
     entry = MockConfigEntry(
         domain=DOMAIN,
         data={
-            CONF_LAT: 51.5, CONF_LON: -0.1, CONF_DECLINATION: 30,
-            CONF_AZIMUTH: 180, CONF_DC_W: 5000,
-            CONF_SOLCAST_KEY: "k", CONF_SOLCAST_SITE: "site-a",
+            CONF_LAT: 51.5,
+            CONF_LON: -0.1,
+            CONF_DECLINATION: 30,
+            CONF_AZIMUTH: 180,
+            CONF_DC_W: 5000,
+            CONF_SOLCAST_KEY: "k",
+            CONF_SOLCAST_SITE: "site-a",
         },
         options={},
     )
     entry.add_to_hass(hass)
-    with patch(_PATCH, new=AsyncMock(return_value=[SITE_B])), \
-         patch("custom_components.ha_solcast_fusion.mirror.fetch_sites",
-               new=AsyncMock(return_value=[])):
+    with (
+        patch(_PATCH, new=AsyncMock(return_value=[SITE_B])),
+        patch("custom_components.ha_solcast_fusion.mirror.fetch_sites", new=AsyncMock(return_value=[])),
+    ):
         r = await entry.start_reconfigure_flow(hass)
         assert r["step_id"] == "user"
-        r = await hass.config_entries.flow.async_configure(
-            r["flow_id"], {CONF_SOLCAST_KEY: "k"}
-        )
+        r = await hass.config_entries.flow.async_configure(r["flow_id"], {CONF_SOLCAST_KEY: "k"})
         # single site -> confirm
         assert r["step_id"] == "confirm"
         r = await hass.config_entries.flow.async_configure(r["flow_id"], {})
@@ -209,21 +197,25 @@ async def test_reconfigure_drops_stale_ac_w_when_new_site_has_none(hass):
     entry = MockConfigEntry(
         domain=DOMAIN,
         data={
-            CONF_LAT: 51.5, CONF_LON: -0.1, CONF_DECLINATION: 30,
-            CONF_AZIMUTH: 180, CONF_DC_W: 5000, CONF_AC_W: 4600,
-            CONF_SOLCAST_KEY: "k", CONF_SOLCAST_SITE: "site-a",
+            CONF_LAT: 51.5,
+            CONF_LON: -0.1,
+            CONF_DECLINATION: 30,
+            CONF_AZIMUTH: 180,
+            CONF_DC_W: 5000,
+            CONF_AC_W: 4600,
+            CONF_SOLCAST_KEY: "k",
+            CONF_SOLCAST_SITE: "site-a",
         },
         options={},
     )
     entry.add_to_hass(hass)
-    with patch(_PATCH, new=AsyncMock(return_value=[SITE_NO_AC])), \
-         patch("custom_components.ha_solcast_fusion.mirror.fetch_sites",
-               new=AsyncMock(return_value=[])):
+    with (
+        patch(_PATCH, new=AsyncMock(return_value=[SITE_NO_AC])),
+        patch("custom_components.ha_solcast_fusion.mirror.fetch_sites", new=AsyncMock(return_value=[])),
+    ):
         r = await entry.start_reconfigure_flow(hass)
         assert r["step_id"] == "user"
-        r = await hass.config_entries.flow.async_configure(
-            r["flow_id"], {CONF_SOLCAST_KEY: "k"}
-        )
+        r = await hass.config_entries.flow.async_configure(r["flow_id"], {CONF_SOLCAST_KEY: "k"})
         # single site -> confirm
         assert r["step_id"] == "confirm"
         r = await hass.config_entries.flow.async_configure(r["flow_id"], {})
@@ -240,15 +232,18 @@ async def test_options_flow_round_trips_diffuse_and_decay(hass):
     entry = MockConfigEntry(
         domain=DOMAIN,
         data={
-            CONF_LAT: 51.5, CONF_LON: -0.1, CONF_DECLINATION: 30,
-            CONF_AZIMUTH: 180, CONF_DC_W: 5000,
-            CONF_SOLCAST_KEY: "k", CONF_SOLCAST_SITE: "site-a",
+            CONF_LAT: 51.5,
+            CONF_LON: -0.1,
+            CONF_DECLINATION: 30,
+            CONF_AZIMUTH: 180,
+            CONF_DC_W: 5000,
+            CONF_SOLCAST_KEY: "k",
+            CONF_SOLCAST_SITE: "site-a",
         },
         options={},
     )
     entry.add_to_hass(hass)
-    with patch("custom_components.ha_solcast_fusion.mirror.fetch_sites",
-               new=AsyncMock(return_value=[])):
+    with patch("custom_components.ha_solcast_fusion.mirror.fetch_sites", new=AsyncMock(return_value=[])):
         await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done(wait_background_tasks=True)
 

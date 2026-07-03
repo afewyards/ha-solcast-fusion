@@ -1,5 +1,5 @@
 import math
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, UTC
 
 EPS = 1.0  # watts
 HALF_BUCKET = timedelta(minutes=30)
@@ -18,10 +18,8 @@ def rollups(blended: dict, now: datetime, tz) -> dict:
     today_local = now.astimezone(tz).date()
     tomorrow_local = today_local + timedelta(days=1)
 
-    today_buckets = {t: w for t, w in blended.items()
-                     if t.astimezone(tz).date() == today_local}
-    tomorrow_buckets = {t: w for t, w in blended.items()
-                        if t.astimezone(tz).date() == tomorrow_local}
+    today_buckets = {t: w for t, w in blended.items() if t.astimezone(tz).date() == today_local}
+    tomorrow_buckets = {t: w for t, w in blended.items() if t.astimezone(tz).date() == tomorrow_local}
 
     def _kwh(buckets):
         return sum(w * 0.5 / 1000.0 for w in buckets.values())
@@ -31,14 +29,11 @@ def rollups(blended: dict, now: datetime, tz) -> dict:
             return None
         return max(buckets, key=buckets.__getitem__).astimezone(tz)
 
-    today_remaining = {t: w for t, w in today_buckets.items()
-                       if t + HALF_BUCKET >= now}
+    today_remaining = {t: w for t, w in today_buckets.items() if t + HALF_BUCKET >= now}
 
     now_hour = now.replace(minute=0, second=0, microsecond=0)
-    current_hour = {t: w for t, w in blended.items()
-                    if now_hour <= t < now_hour + timedelta(hours=1)}
-    next_hour = {t: w for t, w in blended.items()
-                 if now_hour + timedelta(hours=1) <= t < now_hour + timedelta(hours=2)}
+    current_hour = {t: w for t, w in blended.items() if now_hour <= t < now_hour + timedelta(hours=1)}
+    next_hour = {t: w for t, w in blended.items() if now_hour + timedelta(hours=1) <= t < now_hour + timedelta(hours=2)}
 
     current_bucket = _floor_30(now)
 
@@ -53,6 +48,7 @@ def rollups(blended: dict, now: datetime, tz) -> dict:
         "power_now": blended.get(current_bucket, 0.0),
     }
 
+
 def normalize_solcast(slots):
     out = {}
     for s in slots:
@@ -60,8 +56,10 @@ def normalize_solcast(slots):
         out[end - HALF_BUCKET] = float(s["pv_estimate"]) * 1000.0
     return out
 
+
 def _floor_30(t):
     return t.replace(minute=0 if t.minute < 30 else 30, second=0, microsecond=0)
+
 
 def resample_30min(curve):
     """Any tz-aware curve -> 30-min buckets on the UTC :00/:30 grid, linear interp.
@@ -72,8 +70,10 @@ def resample_30min(curve):
     """
     if not curve:
         return {}
+
     def _utc(k):
-        return (k if k.tzinfo else k.replace(tzinfo=timezone.utc)).astimezone(timezone.utc)
+        return (k if k.tzinfo else k.replace(tzinfo=UTC)).astimezone(UTC)
+
     pts = sorted((_utc(k), float(v)) for k, v in curve.items())  # [(dt, w), ...]
     start, end = _floor_30(pts[0][0]), _floor_30(pts[-1][0])
     out, t = {}, start
@@ -89,35 +89,37 @@ def resample_30min(curve):
         t += HALF_BUCKET
     return out
 
+
 def compute_k(om_w, solcast_w, k_min, k_max):
-    if (not math.isfinite(om_w) or not math.isfinite(solcast_w)
-            or om_w <= EPS or solcast_w < 0):
+    if not math.isfinite(om_w) or not math.isfinite(solcast_w) or om_w <= EPS or solcast_w < 0:
         return None
     return max(k_min, min(k_max, solcast_w / om_w))
 
+
 def is_clamped(om_w, solcast_w, k_min, k_max):
-    if (om_w <= EPS or solcast_w < 0
-            or not math.isfinite(om_w) or not math.isfinite(solcast_w)):
+    if om_w <= EPS or solcast_w < 0 or not math.isfinite(om_w) or not math.isfinite(solcast_w):
         return False
     raw = solcast_w / om_w
     return raw < k_min or raw > k_max
 
+
 def decay_k(k, age_s, halflife_s):
     if halflife_s <= 0:
-        return k                                       # no-decay / divide-by-zero guard
-    age_s = max(0.0, age_s)                            # clock-skew guard
+        return k  # no-decay / divide-by-zero guard
+    age_s = max(0.0, age_s)  # clock-skew guard
     return 1.0 + (k - 1.0) * 0.5 ** (age_s / halflife_s)
+
 
 def blend(om, k_by_bucket, solcast, age_s, halflife_s):
     out = {}
     for t, om_w in om.items():
-        if t in k_by_bucket and om_w > EPS:            # collapsed-OM falls through
+        if t in k_by_bucket and om_w > EPS:  # collapsed-OM falls through
             out[t] = om_w * decay_k(k_by_bucket[t], age_s, halflife_s)
         elif om_w <= EPS and t in solcast:
-            out[t] = solcast[t]                        # OM≈0 -> substitute Solcast
+            out[t] = solcast[t]  # OM≈0 -> substitute Solcast
         else:
             out[t] = om_w
-    for t, sc_w in solcast.items():                    # shoulder buckets OM lacks
+    for t, sc_w in solcast.items():  # shoulder buckets OM lacks
         if t not in out:
             out[t] = sc_w
     return out

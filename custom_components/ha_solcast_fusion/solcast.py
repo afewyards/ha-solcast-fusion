@@ -32,9 +32,7 @@ class SolcastSiteError(SolcastError):
     """Solcast site record is missing required data (e.g. capacity)."""
 
 
-async def fetch_forecast(
-    session, key: str, site: str, hours: int = 168
-) -> dict[datetime, float]:
+async def fetch_forecast(session, key: str, site: str, hours: int = 168) -> dict[datetime, float]:
     url = _BASE.format(site=site)
     headers = {"Authorization": f"Bearer {key}"}
     params = {"format": "json", "hours": hours}
@@ -54,9 +52,7 @@ async def fetch_sites(session, key: str) -> list[dict]:
     headers = {"Authorization": f"Bearer {key}"}
     params = {"format": "json"}
     timeout = aiohttp.ClientTimeout(total=30)
-    async with session.get(
-        _SITES_BASE, headers=headers, params=params, timeout=timeout
-    ) as resp:
+    async with session.get(_SITES_BASE, headers=headers, params=params, timeout=timeout) as resp:
         if resp.status in (401, 403):
             raise SolcastAuthError(f"Auth failed: HTTP {resp.status}")
         if resp.status == 429:
@@ -83,9 +79,7 @@ def site_to_config(site: dict) -> dict:
         az = round((-float(site["azimuth"])) % 360) % 360
         resource_id = site["resource_id"]
     except (KeyError, TypeError, ValueError) as err:
-        raise SolcastSiteError(
-            f"Solcast site record missing/invalid geometry: {err}"
-        ) from err
+        raise SolcastSiteError(f"Solcast site record missing/invalid geometry: {err}") from err
 
     out = {
         CONF_LAT: lat,

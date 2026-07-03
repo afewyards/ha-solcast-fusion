@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, UTC
 
 from homeassistant.helpers.event import async_track_point_in_time, async_track_sunrise
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
@@ -83,9 +83,7 @@ class OpenMeteoCoordinator(DataUpdateCoordinator):
     """Fetch OpenMeteo solar forecast; blend with Solcast k-factors from store."""
 
     def __init__(self, hass, config: dict, store, profile, tz) -> None:
-        om_interval = timedelta(
-            minutes=config.get(CONF_OM_INTERVAL_MIN, DEFAULTS[CONF_OM_INTERVAL_MIN])
-        )
+        om_interval = timedelta(minutes=config.get(CONF_OM_INTERVAL_MIN, DEFAULTS[CONF_OM_INTERVAL_MIN]))
         super().__init__(hass, _LOGGER, name="ha_solcast_fusion_om", update_interval=om_interval)
         self._config = config
         self._store = store
@@ -150,7 +148,7 @@ class OpenMeteoCoordinator(DataUpdateCoordinator):
         if om_curve is None:
             om_curve = {}
 
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         return self._build_output_data(om_curve, now)
 
     def _build_output_data(self, om_curve: dict, now: datetime) -> dict:
@@ -238,7 +236,7 @@ class SolcastPoller:
         cap = cfg.get(CONF_SOLCAST_CAP, DEFAULTS[CONF_SOLCAST_CAP])
         reserve = cfg.get(CONF_SOLCAST_RESERVE, DEFAULTS[CONF_SOLCAST_RESERVE])
 
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         self._store.reset_if_new_utc_day_sync(now)
 
         obs = Observer(latitude=lat, longitude=lon)

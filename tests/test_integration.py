@@ -5,10 +5,11 @@ test_scheduler.py / test_sensor.py: HA stubs are installed at module level,
 then the real coordinator / sensor code is imported and exercised directly
 without a full Home Assistant instance.
 """
+
 import asyncio
 import sys
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -110,16 +111,16 @@ for _name, _mod in [
 ]:
     sys.modules.setdefault(_name, _mod)
 
-from custom_components.ha_solcast_fusion.combiner import resample_30min  # noqa: E402
-from custom_components.ha_solcast_fusion.coordinator import OpenMeteoCoordinator  # noqa: E402
-from custom_components.ha_solcast_fusion.sensor import build_sensors  # noqa: E402
-from custom_components.ha_solcast_fusion.store import SolcastFusionStore  # noqa: E402
+from custom_components.ha_solcast_fusion.combiner import resample_30min
+from custom_components.ha_solcast_fusion.coordinator import OpenMeteoCoordinator
+from custom_components.ha_solcast_fusion.sensor import build_sensors
+from custom_components.ha_solcast_fusion.store import SolcastFusionStore
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-UTC = timezone.utc
+UTC = UTC
 _OM_PATCH = "open_meteo_solar_forecast.OpenMeteoSolarForecast"
 
 
@@ -127,9 +128,7 @@ def _buckets(value=1000.0):
     """30-min daytime buckets for today UTC, 06:00–17:30."""
     today = datetime.now(UTC).date()
     return {
-        datetime(today.year, today.month, today.day, h, m, tzinfo=UTC): value
-        for h in range(6, 18)
-        for m in (0, 30)
+        datetime(today.year, today.month, today.day, h, m, tzinfo=UTC): value for h in range(6, 18) for m in (0, 30)
     }
 
 
@@ -202,6 +201,7 @@ def _inject_kfactors(store, om_watts, sc_watts):
 # Scenario 1 — Normal flow: OM + prior Solcast k_factors → blended
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_normal_flow_blended():
     """After refresh with OM + k_factors in store: source=blended, watts non-empty."""
@@ -230,6 +230,7 @@ async def test_normal_flow_blended():
 # Scenario 2 — Solcast-down: no k_factors → om-only, states valid
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_solcast_down_om_only():
     """Empty store (Solcast never succeeded): source=om-only, values valid and non-zero."""
@@ -254,6 +255,7 @@ async def test_solcast_down_om_only():
 # ---------------------------------------------------------------------------
 # Scenario 3 — OM-down after prior blend: held curve keeps sensors available
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_om_down_after_prior_blend_stays_available():
@@ -280,6 +282,7 @@ async def test_om_down_after_prior_blend_stays_available():
 # Scenario 4 — Both-down from cold: sensors unavailable, never return 0
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_both_down_from_cold_unavailable():
     """Cold start + OM fails + no k_factors: data={}, sensors unavailable, native_value None."""
@@ -300,6 +303,7 @@ async def test_both_down_from_cold_unavailable():
 # ---------------------------------------------------------------------------
 # Scenario 5 — Cold-start pre-sunrise: fresh install, OM works
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_cold_start_pre_sunrise_om_only():

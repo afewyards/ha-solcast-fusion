@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 
 from astral import Observer
 from astral.sun import azimuth, elevation
@@ -76,7 +76,7 @@ def horizon_at(profile: list[float], azimuth_deg: float) -> float:
     # Normalise azimuth to [0, 360)
     az = azimuth_deg % 360.0
     idx_f = az / step
-    lo = int(math.floor(idx_f)) % n
+    lo = math.floor(idx_f) % n
     hi = (lo + 1) % n
     frac = idx_f - math.floor(idx_f)
     return profile[lo] + frac * (profile[hi] - profile[lo])
@@ -99,7 +99,7 @@ def apply_mask(
     obs = Observer(latitude=lat, longitude=lon)
     result = {}
     for bucket, value in blended.items():
-        dt = datetime.fromtimestamp(bucket, tz=timezone.utc) if isinstance(bucket, (int, float)) else bucket
+        dt = datetime.fromtimestamp(bucket, tz=UTC) if isinstance(bucket, (int, float)) else bucket
         az = azimuth(obs, dt)
         el = elevation(obs, dt)
         result[bucket] = value * diffuse if is_shaded(profile, az, el) else value

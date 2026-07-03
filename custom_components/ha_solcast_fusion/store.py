@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 
 
 class SolcastFusionStore:
     def __init__(self, hass, entry_id: str):
         from homeassistant.helpers.storage import Store
+
         self._store = Store(hass, 1, f"ha_solcast_fusion.{entry_id}")
         self._init_state()
         self._lock = asyncio.Lock()
@@ -68,7 +69,7 @@ class SolcastFusionStore:
         Persistence happens on the next poll's save; if HA restarts before
         then, scheduling self-heals because this runs again on start/sunrise.
         """
-        today = now.astimezone(timezone.utc).date().isoformat()
+        today = now.astimezone(UTC).date().isoformat()
         if self._data.get("quota_date") != today:
             self._data["quota_used"] = 0
             self._data["quota_date"] = today
@@ -85,13 +86,13 @@ class SolcastFusionStore:
             self._data["last_poll_ts"] = ts.isoformat()
 
     async def bump_quota(self, now: datetime, count: int = 1) -> None:
-        today = now.astimezone(timezone.utc).date().isoformat()
+        today = now.astimezone(UTC).date().isoformat()
         async with self._lock:
             self._data["quota_used"] += count
             self._data["quota_date"] = today
 
     async def mark_mirror_synced(self, now: datetime) -> None:
-        today = now.astimezone(timezone.utc).date().isoformat()
+        today = now.astimezone(UTC).date().isoformat()
         async with self._lock:
             self._data["mirror_sync_date"] = today
         await self.save_now()

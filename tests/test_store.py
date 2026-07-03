@@ -10,7 +10,7 @@ for mod in (
     sys.modules.setdefault(mod, MagicMock())
 
 import pytest
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 
 from custom_components.ha_solcast_fusion.store import SolcastFusionStore
 
@@ -25,15 +25,17 @@ def _make_store(stored=None):
     store._init_state()
     store._store = mock_ha_store
     import asyncio
+
     store._lock = asyncio.Lock()
     return store, mock_ha_store
 
 
-DAY1 = datetime(2026, 6, 30, 12, 0, tzinfo=timezone.utc)
-DAY2 = datetime(2026, 7, 1, 0, 0, tzinfo=timezone.utc)
+DAY1 = datetime(2026, 6, 30, 12, 0, tzinfo=UTC)
+DAY2 = datetime(2026, 7, 1, 0, 0, tzinfo=UTC)
 
 
 # --- quota_remaining ---
+
 
 @pytest.mark.asyncio
 async def test_quota_remaining_decrements_after_bump():
@@ -54,6 +56,7 @@ async def test_quota_remaining_decrements_twice():
 
 # --- reset_if_new_utc_day ---
 
+
 @pytest.mark.asyncio
 async def test_reset_zeroes_on_date_change():
     store, _ = _make_store()
@@ -73,6 +76,7 @@ async def test_reset_does_not_zero_on_same_day():
 
 
 # --- ISO serialization round-trips ---
+
 
 @pytest.mark.asyncio
 async def test_load_populates_data_from_stored():
@@ -110,6 +114,7 @@ async def test_iso_key_round_trip_preserved():
 
 # --- save_now / save_debounced ---
 
+
 @pytest.mark.asyncio
 async def test_save_now_calls_async_save():
     store, mock_ha = _make_store()
@@ -136,6 +141,7 @@ async def test_save_debounced_data_func_returns_current_data():
 
 # --- bump sets quota_date ---
 
+
 @pytest.mark.asyncio
 async def test_bump_sets_quota_date():
     store, _ = _make_store()
@@ -144,6 +150,7 @@ async def test_bump_sets_quota_date():
 
 
 # --- mirror_sync_date ---
+
 
 @pytest.mark.asyncio
 async def test_mirror_sync_date_defaults_none():
@@ -154,7 +161,7 @@ async def test_mirror_sync_date_defaults_none():
 @pytest.mark.asyncio
 async def test_mark_mirror_synced_sets_utc_date_and_saves():
     store, mock_ha = _make_store()
-    await store.mark_mirror_synced(DAY1)          # 2026-06-30 12:00 UTC
+    await store.mark_mirror_synced(DAY1)  # 2026-06-30 12:00 UTC
     assert store.mirror_sync_date == "2026-06-30"
     mock_ha.async_save.assert_called_once_with(store._data)
 

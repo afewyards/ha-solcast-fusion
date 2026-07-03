@@ -1,9 +1,9 @@
 import pytest
-from datetime import datetime, timezone, timedelta, date
+from datetime import datetime, timezone, timedelta, date, UTC
 from zoneinfo import ZoneInfo
 from custom_components.ha_solcast_fusion import combiner as c
 
-UTC = timezone.utc
+UTC = UTC
 AMS = ZoneInfo("Europe/Amsterdam")
 
 
@@ -12,6 +12,7 @@ def utc(year, month, day, hour, minute=0):
 
 
 # ── daily_scalar ─────────────────────────────────────────────────────────────
+
 
 def test_daily_scalar_ratio():
     om = {utc(2026, 6, 30, 10): 2000.0, utc(2026, 6, 30, 10, 30): 2000.0}
@@ -47,6 +48,7 @@ def test_daily_scalar_uses_overlap_only():
 
 # ── rollups ───────────────────────────────────────────────────────────────────
 
+
 def test_rollups_flat_day_sums_to_4kwh():
     # 2 × 4000 W × 0.5 h = 4000 Wh = 4.0 kWh
     now = utc(2026, 6, 30, 9)
@@ -63,8 +65,8 @@ def test_rollups_today_remaining_keeps_partial_bucket():
     # bucket 09:30 ends 10:00 (< now) → excluded
     now = utc(2026, 6, 30, 10, 15)
     blended = {
-        utc(2026, 6, 30, 9, 30): 2000.0,   # end 10:00 → excluded
-        utc(2026, 6, 30, 10, 0): 2000.0,   # end 10:30 → included (partial)
+        utc(2026, 6, 30, 9, 30): 2000.0,  # end 10:00 → excluded
+        utc(2026, 6, 30, 10, 0): 2000.0,  # end 10:30 → included (partial)
         utc(2026, 6, 30, 10, 30): 2000.0,  # end 11:00 → included
     }
     result = c.rollups(blended, now, AMS)

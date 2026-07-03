@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 
 from .const import (
     CONF_AC_W,
@@ -34,7 +34,7 @@ _LATLON = (CONF_LAT, CONF_LON)
 
 
 def _utc_today(now: datetime) -> str:
-    return now.astimezone(timezone.utc).date().isoformat()
+    return now.astimezone(UTC).date().isoformat()
 
 
 def geometry_differs(current: dict, new: dict) -> bool:
@@ -52,7 +52,7 @@ def geometry_differs(current: dict, new: dict) -> bool:
 
 async def async_mirror_check(hass, entry, config, store, session, coordinator) -> None:
     """Once/day: pull the Solcast site record and mirror geometry into config."""
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
     await store.reset_if_new_utc_day(now)
     if store.mirror_sync_date == _utc_today(now):
         return
