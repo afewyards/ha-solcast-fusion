@@ -16,7 +16,10 @@
       },
       "confirm": {
         "title": "Confirm PV configuration",
-        "description": "Pulled from Solcast (kept in sync automatically):\n\nLatitude: {latitude}\nLongitude: {longitude}\nTilt: {declination}°\nAzimuth: {azimuth}° (0=N, 90=E, 180=S, 270=W)\nDC peak: {dc_w} W\nAC limit: {ac_w} W"
+        "description": "Pulled from Solcast (kept in sync automatically):\n\nLatitude: {latitude}\nLongitude: {longitude}\nTilt: {declination}°\nAzimuth: {azimuth}° (0=N, 90=E, 180=S, 270=W)\nDC peak: {dc_w} W\nAC limit: {ac_w} W",
+        "data": {
+          "name": "Name"
+        }
       }
     },
     "error": {

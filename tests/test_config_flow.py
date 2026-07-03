@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant import config_entries
+from homeassistant.const import CONF_NAME
 from homeassistant.data_entry_flow import FlowResultType
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -256,3 +257,69 @@ async def test_options_flow_round_trips_diffuse_and_decay(hass):
     r = await hass.config_entries.options.async_configure(r["flow_id"], new_opts)
     assert r["type"] == FlowResultType.CREATE_ENTRY
     assert entry.options[CONF_DIFFUSE] == pytest.approx(0.2)
+
+
+@pytest.mark.asyncio
+async def test_confirm_defaults_name_to_site_name(hass):
+    with (
+        patch(_PATCH, new=AsyncMock(return_value=[SITE_A])),
+        patch("custom_components.ha_solcast_fusion.mirror.fetch_sites", new=AsyncMock(return_value=[])),
+    ):
+        r = await _init(hass)
+        r = await hass.config_entries.flow.async_configure(r["flow_id"], {CONF_SOLCAST_KEY: "k"})
+        assert r["step_id"] == "confirm"
+        # Submit with no name -> form schema default fills in the site name.
+        r = await hass.config_entries.flow.async_configure(r["flow_id"], {})
+        await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert r["type"] == FlowResultType.CREATE_ENTRY
+    assert r["title"] == "Home"  # SITE_A["name"]
+
+
+@pytest.mark.asyncio
+async def test_custom_name_used_as_title(hass):
+    with (
+        patch(_PATCH, new=AsyncMock(return_value=[SITE_A])),
+        patch("custom_components.ha_solcast_fusion.mirror.fetch_sites", new=AsyncMock(return_value=[])),
+    ):
+        r = await _init(hass)
+        r = await hass.config_entries.flow.async_configure(r["flow_id"], {CONF_SOLCAST_KEY: "k"})
+        assert r["step_id"] == "confirm"
+        r = await hass.config_entries.flow.async_configure(r["flow_id"], {CONF_NAME: "Roof East"})
+        await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert r["type"] == FlowResultType.CREATE_ENTRY
+    assert r["title"] == "Roof East"
+    assert r["data"][CONF_SOLCAST_SITE] == "site-a"
+
+
+@pytest.mark.asyncio
+async def test_reconfigure_updates_title(hass):
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Old Name",
+        data={
+            CONF_LAT: 51.5,
+            CONF_LON: -0.1,
+            CONF_DECLINATION: 30,
+            CONF_AZIMUTH: 180,
+            CONF_DC_W: 5000,
+            CONF_SOLCAST_KEY: "k",
+            CONF_SOLCAST_SITE: "site-a",
+        },
+        options={},
+    )
+    entry.add_to_hass(hass)
+    with (
+        patch(_PATCH, new=AsyncMock(return_value=[SITE_A])),
+        patch("custom_components.ha_solcast_fusion.mirror.fetch_sites", new=AsyncMock(return_value=[])),
+    ):
+        r = await entry.start_reconfigure_flow(hass)
+        r = await hass.config_entries.flow.async_configure(r["flow_id"], {CONF_SOLCAST_KEY: "k"})
+        assert r["step_id"] == "confirm"
+        r = await hass.config_entries.flow.async_configure(r["flow_id"], {CONF_NAME: "New Name"})
+        await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert r["type"] == FlowResultType.ABORT
+    assert r["reason"] == "reconfigure_successful"
+    assert entry.title == "New Name"

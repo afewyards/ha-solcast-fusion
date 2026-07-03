@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import voluptuous as vol
 from homeassistant import config_entries
+from homeassistant.const import CONF_NAME
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import (
@@ -53,6 +54,7 @@ class SolcastFusionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._data: dict = {}
         self._sites: list[dict] = []
         self._reconfigure_entry = None
+        self._default_name: str = "SolcastFusion"
 
     async def async_step_user(self, user_input=None):
         return await self._async_key_step(user_input)
@@ -109,6 +111,7 @@ class SolcastFusionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 except SolcastSiteError:
                     errors["base"] = "invalid_site"
                 else:
+                    self._default_name = site.get("name") or "SolcastFusion"
                     return await self.async_step_confirm()
 
         options = {s["resource_id"]: _site_label(s) for s in self._sites}
@@ -120,13 +123,15 @@ class SolcastFusionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_confirm(self, user_input=None):
         if user_input is not None:
+            name = user_input[CONF_NAME]
             if self._reconfigure_entry is not None:
                 new_data = {**self._reconfigure_entry.data, **self._data}
                 if CONF_AC_W not in self._data:
                     new_data.pop(CONF_AC_W, None)
-                return self.async_update_reload_and_abort(self._reconfigure_entry, data=new_data)
-            return self.async_create_entry(title="SolcastFusion", data=self._data)
+                return self.async_update_reload_and_abort(self._reconfigure_entry, data=new_data, title=name)
+            return self.async_create_entry(title=name, data=self._data)
 
+        default_name = self._reconfigure_entry.title if self._reconfigure_entry is not None else self._default_name
         placeholders = {
             CONF_LAT: str(self._data[CONF_LAT]),
             CONF_LON: str(self._data[CONF_LON]),
@@ -137,7 +142,7 @@ class SolcastFusionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         }
         return self.async_show_form(
             step_id="confirm",
-            data_schema=vol.Schema({}),
+            data_schema=vol.Schema({vol.Required(CONF_NAME, default=default_name): str}),
             description_placeholders=placeholders,
         )
 
