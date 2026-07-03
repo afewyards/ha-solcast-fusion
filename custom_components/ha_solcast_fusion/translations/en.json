@@ -28,7 +28,26 @@
       "unknown": "Unexpected error – check logs"
     }
   },
-  "options": {},
+  "options": {
+    "step": {
+      "init": {
+        "title": "SolcastFusion options",
+        "data": {
+          "horizon_file": "Horizon mask file path (optional)",
+          "diffuse": "Diffuse irradiance fraction",
+          "k_min": "Minimum correction factor (k_min)",
+          "k_max": "Maximum correction factor (k_max)",
+          "decay_halflife_h": "k-factor decay half-life (hours, 0 = no decay)",
+          "damp_am": "Morning damping factor",
+          "damp_pm": "Evening damping factor",
+          "efficiency": "Panel efficiency factor",
+          "om_interval_min": "Open-Meteo poll interval (minutes)",
+          "solcast_cap": "Solcast daily API call budget",
+          "solcast_reserve": "Solcast calls to keep in reserve"
+        }
+      }
+    }
+  },
   "entity": {
     "sensor": {
       "energy_production_today": {

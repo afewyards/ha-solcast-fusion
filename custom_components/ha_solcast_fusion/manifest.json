@@ -4,9 +4,9 @@
   "codeowners": ["@afewyards"],
   "config_flow": true,
   "documentation": "https://github.com/afewyards/ha-solcast-fusion",
-  "issue_tracker": "https://github.com/afewyards/ha-solcast-fusion/issues",
   "integration_type": "service",
   "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/afewyards/ha-solcast-fusion/issues",
   "requirements": ["open_meteo_solar_forecast==0.1.29"],
   "version": "0.1.0"
 }
