@@ -122,8 +122,9 @@ class SolcastFusionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     async def async_step_confirm(self, user_input=None):
+        default_name = self._reconfigure_entry.title if self._reconfigure_entry is not None else self._default_name
         if user_input is not None:
-            name = user_input[CONF_NAME]
+            name = user_input[CONF_NAME].strip() or default_name
             if self._reconfigure_entry is not None:
                 new_data = {**self._reconfigure_entry.data, **self._data}
                 if CONF_AC_W not in self._data:
@@ -131,7 +132,6 @@ class SolcastFusionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 return self.async_update_reload_and_abort(self._reconfigure_entry, data=new_data, title=name)
             return self.async_create_entry(title=name, data=self._data)
 
-        default_name = self._reconfigure_entry.title if self._reconfigure_entry is not None else self._default_name
         placeholders = {
             CONF_LAT: str(self._data[CONF_LAT]),
             CONF_LON: str(self._data[CONF_LON]),

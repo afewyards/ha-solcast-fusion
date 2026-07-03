@@ -323,3 +323,19 @@ async def test_reconfigure_updates_title(hass):
     assert r["type"] == FlowResultType.ABORT
     assert r["reason"] == "reconfigure_successful"
     assert entry.title == "New Name"
+
+
+@pytest.mark.asyncio
+async def test_blank_name_falls_back_to_site_name(hass):
+    with (
+        patch(_PATCH, new=AsyncMock(return_value=[SITE_A])),
+        patch("custom_components.ha_solcast_fusion.mirror.fetch_sites", new=AsyncMock(return_value=[])),
+    ):
+        r = await _init(hass)
+        r = await hass.config_entries.flow.async_configure(r["flow_id"], {CONF_SOLCAST_KEY: "k"})
+        assert r["step_id"] == "confirm"
+        r = await hass.config_entries.flow.async_configure(r["flow_id"], {CONF_NAME: "   "})
+        await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert r["type"] == FlowResultType.CREATE_ENTRY
+    assert r["title"] == "Home"

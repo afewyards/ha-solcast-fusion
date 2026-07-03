@@ -3,12 +3,14 @@
 from datetime import datetime, UTC
 from unittest.mock import MagicMock
 
+import pytest
 from homeassistant.const import EntityCategory
 
 from custom_components.ha_solcast_fusion.const import DOMAIN
 from custom_components.ha_solcast_fusion.sensor import (
     EnergyProductionTodaySensor,
     SolcastFusionSensor,
+    async_setup_entry,
     build_sensors,
 )
 
@@ -171,3 +173,18 @@ def test_sensors_share_named_device():
         assert di["name"] == "Roof East"
         assert di["manufacturer"] == "SolcastFusion"
         assert "model" not in di
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_names_device_from_entry_title():
+    coordinator = _coord(SAMPLE_DATA)
+    hass = MagicMock()
+    hass.data = {DOMAIN: {"entry1": {"coordinator": coordinator}}}
+    entry = MagicMock()
+    entry.entry_id = "entry1"
+    entry.title = "Roof East"
+    captured: list = []
+    await async_setup_entry(hass, entry, lambda entities: captured.extend(entities))
+    assert captured
+    assert all(s._attr_device_info["name"] == "Roof East" for s in captured)
+    assert all(s._attr_device_info["identifiers"] == {(DOMAIN, "entry1")} for s in captured)
