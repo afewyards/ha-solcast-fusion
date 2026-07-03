@@ -1,5 +1,5 @@
 import math
-from datetime import datetime, timedelta, timezone, UTC
+from datetime import datetime, timedelta, UTC
 
 EPS = 1.0  # watts
 HALF_BUCKET = timedelta(minutes=30)
