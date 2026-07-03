@@ -1,9 +1,8 @@
 import pytest
-from datetime import datetime, timezone, timedelta, date, UTC
+from datetime import datetime, timedelta, date, UTC
 from zoneinfo import ZoneInfo
 from custom_components.ha_solcast_fusion import combiner as c
 
-UTC = UTC
 AMS = ZoneInfo("Europe/Amsterdam")
 
 

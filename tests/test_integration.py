@@ -9,7 +9,7 @@ without a full Home Assistant instance.
 import asyncio
 import sys
 from dataclasses import dataclass
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -120,7 +120,6 @@ from custom_components.ha_solcast_fusion.store import SolcastFusionStore
 # Helpers
 # ---------------------------------------------------------------------------
 
-UTC = UTC
 _OM_PATCH = "open_meteo_solar_forecast.OpenMeteoSolarForecast"
 
 

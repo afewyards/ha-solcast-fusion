@@ -1,6 +1,6 @@
 """Tests for ha_solcast_fusion sensor platform."""
 
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from unittest.mock import MagicMock
 
 from homeassistant.const import EntityCategory

@@ -8,7 +8,7 @@ x1 source pin: c898b0d90764de522124f97473ac46c6676c02e2
 
 from __future__ import annotations
 
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 
 import pytest
 

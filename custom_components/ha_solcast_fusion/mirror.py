@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 
 from .const import (
     CONF_AC_W,

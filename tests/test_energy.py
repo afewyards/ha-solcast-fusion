@@ -1,6 +1,6 @@
 """Tests for the HA Energy dashboard solar forecast platform."""
 
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from types import SimpleNamespace
 
 import pytest

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from datetime import datetime, timedelta, timezone, UTC
+from datetime import datetime, timedelta, UTC
 
 from homeassistant.helpers.event import async_track_point_in_time, async_track_sunrise
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator

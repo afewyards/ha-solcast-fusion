@@ -10,7 +10,7 @@ for mod in (
     sys.modules.setdefault(mod, MagicMock())
 
 import pytest
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 
 from custom_components.ha_solcast_fusion.store import SolcastFusionStore
 

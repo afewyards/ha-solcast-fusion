@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 import re
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 
 from astral import Observer
 from astral.sun import azimuth, elevation

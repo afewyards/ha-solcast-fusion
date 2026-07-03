@@ -1,8 +1,6 @@
 from datetime import datetime, timezone, timedelta, UTC
 from custom_components.ha_solcast_fusion import combiner as c
 
-UTC = UTC
-
 
 def dt(h, m=0):
     return datetime(2026, 6, 30, h, m, tzinfo=UTC)

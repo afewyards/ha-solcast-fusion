@@ -23,7 +23,7 @@ for _name, _mod in [
 ]:
     sys.modules.setdefault(_name, _mod)
 
-from datetime import datetime, timedelta, timezone, UTC
+from datetime import datetime, timedelta, UTC
 
 from custom_components.ha_solcast_fusion.coordinator import next_due, solcast_interval
 

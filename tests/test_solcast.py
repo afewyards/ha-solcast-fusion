@@ -1,5 +1,5 @@
 import pytest
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from unittest.mock import AsyncMock, MagicMock
 
 from custom_components.ha_solcast_fusion.solcast import fetch_forecast, SolcastAuthError, SolcastError

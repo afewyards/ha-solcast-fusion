@@ -1,5 +1,5 @@
 import pytest
-from datetime import timezone, UTC
+from datetime import UTC
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from custom_components.ha_solcast_fusion.mirror import async_mirror_check, geometry_differs
@@ -14,8 +14,6 @@ from custom_components.ha_solcast_fusion.const import (
     CONF_SOLCAST_KEY,
     CONF_SOLCAST_SITE,
 )
-
-UTC = UTC
 
 # Solcast site whose mapping == BASE_DATA geometry (azimuth -180 -> compass 180).
 SITE_SAME = {
