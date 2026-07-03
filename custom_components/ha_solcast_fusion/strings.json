@@ -1,0 +1,94 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Solcast API key",
+        "description": "Enter your Solcast API key. Your rooftop site's location, tilt, azimuth and capacity are read from Solcast automatically.",
+        "data": {
+          "solcast_key": "API key"
+        }
+      },
+      "site": {
+        "title": "Choose your Solcast site",
+        "data": {
+          "solcast_site": "Site"
+        }
+      },
+      "confirm": {
+        "title": "Confirm PV configuration",
+        "description": "Pulled from Solcast (kept in sync automatically):\n\nLatitude: {latitude}\nLongitude: {longitude}\nTilt: {declination}°\nAzimuth: {azimuth}° (0=N, 90=E, 180=S, 270=W)\nDC peak: {dc_w} W\nAC limit: {ac_w} W"
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid Solcast credentials",
+      "cannot_connect": "Cannot reach Solcast API",
+      "solcast_busy": "Solcast is busy (rate-limited); try again shortly",
+      "no_sites": "No rooftop sites found on this API key — create one on the Solcast dashboard first",
+      "invalid_site": "The selected Solcast site has no usable capacity",
+      "unknown": "Unexpected error – check logs"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "SolcastFusion options",
+        "data": {
+          "horizon_file": "Horizon mask file path (optional)",
+          "diffuse": "Diffuse irradiance fraction",
+          "k_min": "Minimum correction factor (k_min)",
+          "k_max": "Maximum correction factor (k_max)",
+          "decay_halflife_h": "k-factor decay half-life (hours, 0 = no decay)",
+          "damp_am": "Morning damping factor",
+          "damp_pm": "Evening damping factor",
+          "efficiency": "Panel efficiency factor",
+          "om_interval_min": "Open-Meteo poll interval (minutes)",
+          "solcast_cap": "Solcast daily API call budget",
+          "solcast_reserve": "Solcast calls to keep in reserve"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "energy_production_today": {
+        "name": "Energy Production Today"
+      },
+      "energy_production_today_remaining": {
+        "name": "Energy Production Today Remaining"
+      },
+      "energy_production_tomorrow": {
+        "name": "Energy Production Tomorrow"
+      },
+      "power_production_now": {
+        "name": "Power Production Now"
+      },
+      "power_highest_peak_time_today": {
+        "name": "Peak Power Time Today"
+      },
+      "power_highest_peak_time_tomorrow": {
+        "name": "Peak Power Time Tomorrow"
+      },
+      "energy_current_hour": {
+        "name": "Energy Current Hour"
+      },
+      "energy_next_hour": {
+        "name": "Energy Next Hour"
+      },
+      "solcast_calls_remaining": {
+        "name": "Solcast Calls Remaining"
+      },
+      "last_solcast_update": {
+        "name": "Last Solcast Update"
+      },
+      "correction_factor": {
+        "name": "Correction Factor"
+      },
+      "source": {
+        "name": "Source"
+      },
+      "pct_periods_clamped": {
+        "name": "Clamped Periods"
+      }
+    }
+  }
+}
