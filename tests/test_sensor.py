@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 
 from homeassistant.const import EntityCategory
 
+from custom_components.ha_solcast_fusion.const import DOMAIN
 from custom_components.ha_solcast_fusion.sensor import (
     EnergyProductionTodaySensor,
     SolcastFusionSensor,
@@ -157,3 +158,16 @@ def test_watts_extra_attrs_none_when_no_data():
     sensors = build_sensors(_coord({}), "test_entry")
     today = next(s for s in sensors if s.entity_description.translation_key == "energy_production_today")
     assert today.extra_state_attributes is None
+
+
+def test_sensors_share_named_device():
+    sensors = build_sensors(_coord(SAMPLE_DATA), "entry_abc", "Roof East")
+    assert sensors
+    for s in sensors:
+        assert s._attr_has_entity_name is True
+        di = s._attr_device_info
+        assert di is not None
+        assert di["identifiers"] == {(DOMAIN, "entry_abc")}
+        assert di["name"] == "Roof East"
+        assert di["manufacturer"] == "SolcastFusion"
+        assert "model" not in di

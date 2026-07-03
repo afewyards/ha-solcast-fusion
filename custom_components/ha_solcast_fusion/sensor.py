@@ -10,6 +10,7 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import EntityCategory, UnitOfEnergy, UnitOfPower
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
@@ -122,6 +123,7 @@ SENSOR_DESCRIPTIONS: tuple[SolcastFusionSensorDescription, ...] = (
 class SolcastFusionSensor(CoordinatorEntity, SensorEntity):
     """Generic sensor reading from OpenMeteoCoordinator data."""
 
+    _attr_has_entity_name = True
     _unrecorded_attributes: frozenset[str] = frozenset()
 
     def __init__(
@@ -129,10 +131,16 @@ class SolcastFusionSensor(CoordinatorEntity, SensorEntity):
         coordinator,
         description: SolcastFusionSensorDescription,
         entry_id: str,
+        name: str = "SolcastFusion",
     ) -> None:
         super().__init__(coordinator)
         self.entity_description = description
         self._attr_unique_id = f"{entry_id}_{description.key}"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry_id)},
+            name=name,
+            manufacturer="SolcastFusion",
+        )
 
     @property
     def available(self) -> bool:
@@ -169,18 +177,18 @@ class _WattsAttributeSensor(SolcastFusionSensor):
 EnergyProductionTodaySensor = _WattsAttributeSensor
 
 
-def build_sensors(coordinator, entry_id: str) -> list[SolcastFusionSensor]:
+def build_sensors(coordinator, entry_id: str, name: str = "SolcastFusion") -> list[SolcastFusionSensor]:
     """Create all sensor entities."""
     sensors: list[SolcastFusionSensor] = []
     for desc in SENSOR_DESCRIPTIONS:
         if desc.key == "energy_production_today":
-            sensors.append(_WattsAttributeSensor(coordinator, desc, entry_id))
+            sensors.append(_WattsAttributeSensor(coordinator, desc, entry_id, name))
         else:
-            sensors.append(SolcastFusionSensor(coordinator, desc, entry_id))
+            sensors.append(SolcastFusionSensor(coordinator, desc, entry_id, name))
     return sensors
 
 
 async def async_setup_entry(hass, entry, async_add_entities) -> None:
     """Set up SolcastFusion sensors from a config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
-    async_add_entities(build_sensors(coordinator, entry.entry_id))
+    async_add_entities(build_sensors(coordinator, entry.entry_id, entry.title))
