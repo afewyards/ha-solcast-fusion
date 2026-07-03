@@ -1,0 +1,7 @@
+pytest==8.4.0
+pytest-homeassistant-custom-component==0.13.260
+homeassistant==2025.7.0
+open-meteo-solar-forecast==0.1.29
+# aiodns 3.5.0 (pinned transitively by HA 2025.7.0) references pycares.ares_query_a_result,
+# which pycares 5.x removed. Constrain to the release-era 4.x line so the env runs.
+pycares<5

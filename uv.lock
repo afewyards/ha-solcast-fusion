@@ -1,0 +1,8 @@
+version = 1
+revision = 3
+requires-python = ">=3.12"
+
+[[package]]
+name = "ha-solcast-fusion"
+version = "0.1.0"
+source = { editable = "." }
