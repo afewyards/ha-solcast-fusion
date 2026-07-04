@@ -79,7 +79,7 @@ async def test_reset_does_not_zero_on_same_day():
 
 
 @pytest.mark.asyncio
-async def test_load_populates_data_from_stored():
+async def test_load_migrates_legacy_and_drops_old_keys():
     saved = {
         "last_solcast": {"2026-06-30T10:00:00+00:00": 1500.0},
         "k_factors": {"2026-06-30T10:00:00+00:00": 1.2},
@@ -92,8 +92,10 @@ async def test_load_populates_data_from_stored():
     await store.load()
     assert store._data["quota_used"] == 3
     assert store._data["quota_date"] == "2026-06-30"
-    assert store._data["last_solcast_ts"] == "2026-06-30T10:00:00+00:00"
-    assert store._data["last_solcast"] == {"2026-06-30T10:00:00+00:00": 1500.0}
+    assert "last_solcast" not in store._data
+    assert "k_factors" not in store._data
+    key = datetime.fromisoformat("2026-06-30T10:00:00+00:00")
+    assert store.solcast_retained[key]["w"] == 1500.0
 
 
 @pytest.mark.asyncio
@@ -101,15 +103,14 @@ async def test_load_with_nothing_stored_keeps_defaults():
     store, _ = _make_store(stored=None)
     await store.load()
     assert store._data["quota_used"] == 0
-    assert store._data["last_solcast"] == {}
+    assert store._data["solcast_retained"] == {}
 
 
 @pytest.mark.asyncio
-async def test_iso_key_round_trip_preserved():
+async def test_retained_iso_key_round_trip_preserved():
     store, _ = _make_store()
-    key = DAY1.isoformat()
-    store._data["last_solcast"][key] = 2000.0
-    assert store._data["last_solcast"][key] == 2000.0
+    store._data["solcast_retained"][DAY1.isoformat()] = {"w": 2000.0, "fetched": DAY1.isoformat()}
+    assert store.solcast_retained[DAY1]["w"] == 2000.0
 
 
 # --- save_now / save_debounced ---

@@ -17,8 +17,6 @@ class SolcastFusionStore:
     def _init_state(self):
         self._data: dict = {
             "solcast_retained": {},
-            "last_solcast": {},
-            "k_factors": {},
             "last_solcast_ts": None,
             "quota_date": None,
             "quota_used": 0,
@@ -39,7 +37,10 @@ class SolcastFusionStore:
         ts = stored.get("last_solcast_ts")
         old = stored.get("last_solcast") or {}
         retained = {iso: {"w": float(w), "fetched": ts} for iso, w in old.items()} if ts else {}
-        return {**stored, "solcast_retained": retained, "schema_version": 2}
+        out = {k: v for k, v in stored.items() if k not in ("last_solcast", "k_factors")}
+        out["solcast_retained"] = retained
+        out["schema_version"] = 2
+        return out
 
     async def save_now(self) -> None:
         async with self._lock:
@@ -48,16 +49,6 @@ class SolcastFusionStore:
     async def save_debounced(self) -> None:
         async with self._lock:
             self._store.async_delay_save(lambda: self._data, 30)
-
-    @property
-    def last_solcast(self) -> dict:
-        raw = self._data.get("last_solcast", {})
-        return {datetime.fromisoformat(k): v for k, v in raw.items()}
-
-    @property
-    def k_factors(self) -> dict:
-        raw = self._data.get("k_factors", {})
-        return {datetime.fromisoformat(k): v for k, v in raw.items()}
 
     @property
     def last_solcast_ts(self) -> datetime | None:
@@ -98,13 +89,6 @@ class SolcastFusionStore:
     async def reset_if_new_utc_day(self, now: datetime) -> None:
         async with self._lock:
             self.reset_if_new_utc_day_sync(now)
-
-    async def save_poll_result(self, k_factors: dict, forecast: dict, ts: datetime) -> None:
-        async with self._lock:
-            self._data["k_factors"] = {t.isoformat(): k for t, k in k_factors.items()}
-            self._data["last_solcast"] = {t.isoformat(): w for t, w in forecast.items()}
-            self._data["last_solcast_ts"] = ts.isoformat()
-            self._data["last_poll_ts"] = ts.isoformat()
 
     async def merge_poll(self, forecast: dict[datetime, float], ts: datetime) -> None:
         """Merge a poll's future buckets into the rolling map; expire buckets > 48 h old."""
