@@ -22,3 +22,6 @@ htmlcov/
 .idea/
 .vscode/
 .DS_Store
+
+# Internal workflow artifacts (never ship in the repo)
+docs/superpowers/
