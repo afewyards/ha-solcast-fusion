@@ -16,13 +16,13 @@ SolcastFusion is a **drop-in replacement** for the official `open_meteo_solar_fo
 
 ## How it works
 
-SolcastFusion doesn't blend a stale Solcast reading with fresh Open-Meteo data (that's often worse than either). Instead it **bias-corrects** the live Open-Meteo curve toward Solcast truth:
+SolcastFusion keeps a **rolling, freshness-weighted blend** of both forecasts, then applies **your local horizon shading** on top. Solcast supplies the trusted shape and magnitude; the horizon layer models what neither API can see:
 
 1. Both forecasts are aligned to a common 30-minute grid keyed by **absolute UTC instants** (DST-safe — no duplicated or dropped periods).
-2. At each Solcast poll, a per-period correction factor `k(t) = solcast(t) / openmeteo(t)` is computed, guarded against bad values, then clamped to `[0.5, 2.0]`.
-3. The blended output is `openmeteo(t) × k(t)`, recomputed on **every** fresh Open-Meteo poll (~20 min) — always using the freshest cloud data, merely scaled toward Solcast.
-4. At dawn/dusk where Open-Meteo ≈ 0 (a factor can't lift a zero), the Solcast value is **substituted directly**.
-5. Between Solcast polls the `k` factors **decay toward 1.0** (pure Open-Meteo) as they age, so a stale calibration can't mislead when the sky changes fast.
+2. Each Solcast poll is **merged into a retained per-period curve** (kept ~48 h), so calibration from earlier in the day is never overwritten by a later poll.
+3. Per period the base is `base(t) = w·solcast(t) + (1 − w)·openmeteo(t)`, with the Solcast weight `w = clamp(w_max · 0.5^(age/half-life), w_min, w_max)` — Solcast-dominant when fresh, still leaning Solcast when stale (floor `w_min`), since Open-Meteo is the one that drifts.
+4. Where no Solcast is retained for a period, the base is `openmeteo(t) × daily_bias` — the Solcast⁄Open-Meteo daily-total ratio (clamped `[k_min, k_max]`) — so today's magnitude calibration carries into uncovered periods.
+5. The base is then scaled by a **graded horizon transmission** (below), and the whole output is recomputed on **every** fresh Open-Meteo poll (~20 min).
 
 ### Quota-aware Solcast polling
 
@@ -30,13 +30,13 @@ Solcast is polled on a **daylight-aware budget scheduler**, not a fixed interval
 
 - One poll near **sunrise**, then spread across daylight at an adaptive interval so long summer days never overrun the cap.
 - **Never polls at night** — one call returns the whole horizon (up to +14 days), so the last daylight poll already carries tomorrow's curve.
-- A persisted daily counter enforces a **hard quota guard** (default cap 8, with 2 in reserve for retries), reset at 00:00 UTC.
-- Restarts **never burn quota or lose calibration** — the last curve, `k` factors, and call counter are persisted.
+- A persisted daily counter enforces a **hard quota guard** (default cap 10, no reserve — the full free-tier budget), reset at 00:00 UTC.
+- Restarts **never burn quota or lose calibration** — the retained Solcast curve and call counter are persisted.
 - If the quota is exhausted or Solcast is down, it falls back to **pure Open-Meteo** rather than reporting zero.
 
 ### Near-field horizon shading (optional)
 
-Neither free API knows about *your* trees and buildings. Provide an optional horizon file and SolcastFusion applies a single shading mask to the blended curve — identical shading for both sources by construction (see [Horizon file](#horizon-file)).
+Neither free API knows about *your* trees and buildings. Point SolcastFusion at a horizon-elevation profile and it applies a **graded transmission** to the blended curve: for each period `transmission = clamp((sun_elevation − horizon(azimuth)) / shoulder, floor, 1)` — full sun well above the obstruction, a soft ramp across its edge, and a `floor` (diffuse-only) fraction when the beam is fully blocked (see [Horizon file](#horizon-file)).
 
 ---
 
@@ -65,7 +65,7 @@ You only need a **Solcast API key** — the PV geometry is pulled from Solcast a
 2. **Choose your site** — pick a rooftop site (skipped automatically if you only have one).
 3. **Confirm** — latitude, longitude, tilt, azimuth, DC peak and AC limit are read from Solcast and shown for review.
 
-> Solcast is treated as the **source of truth** for geometry. A daily background check (≈00:05, quota-free) re-reads the site and mirrors any changes into the Open-Meteo config in place — so if you edit your array on the Solcast dashboard, the calibration never silently drifts. No manual reconfigure needed.
+> Solcast is treated as the **source of truth** for geometry. A **weekly** background check re-reads the site and mirrors any changes into the Open-Meteo config in place — so if you edit your array on the Solcast dashboard, the calibration never silently drifts. It spends one Solcast call from the daily budget on the day it runs, and defers if the budget is already exhausted. No manual reconfigure needed.
 
 You can re-enter or change your API key later via the integration's **Reconfigure** action.
 
@@ -75,26 +75,37 @@ Open **Configure** on the integration to tune behaviour. Every option has a safe
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| Horizon mask file path | *(none)* | Optional near-field shading profile (see below) |
-| Diffuse irradiance fraction | `0.15` | Light retained in shaded periods (0 = full block) |
-| Minimum correction factor `k_min` | `0.5` | Lower clamp on the per-period factor |
-| Maximum correction factor `k_max` | `2.0` | Upper clamp on the per-period factor |
-| `k`-factor decay half-life (hours) | `2` | How fast a stale factor decays toward 1.0 (`0` = flat-hold, no decay) |
-| Morning damping factor | `0.0` | Rolls off the morning shoulder (e.g. `0.3` for SE shade) |
+| Horizon mask file path (optional) | *(none)* | Path to a horizon-elevation profile (see below) |
+| Horizon diffuse floor | `0.18` | Transmission when the beam is fully blocked (`0` = full block) |
+| Horizon soft-edge width (degrees) | `6` | Elevation span over which shading ramps from floor to full sun |
+| Max Solcast weight when fresh | `0.9` | Blend weight on a just-fetched Solcast period |
+| Min Solcast weight when stale | `0.5` | Floor on the Solcast blend weight as it ages |
+| Solcast freshness half-life (hours) | `2` | How fast the Solcast weight decays toward the floor (`0` = flat-hold) |
+| Minimum daily bias (Solcast/OM) | `0.5` | Lower clamp on the fallback bias for uncovered periods |
+| Maximum daily bias (Solcast/OM) | `2.0` | Upper clamp on the fallback bias |
+| Morning damping factor | `0.0` | Rolls off the morning shoulder |
 | Evening damping factor | `0.0` | Rolls off the evening shoulder |
 | Panel efficiency factor | `0.93` | Open-Meteo lib efficiency input |
-| Open-Meteo poll interval (min) | `20` | Live forecast refresh cadence |
-| Solcast daily API call budget | `8` | Hard cap (free tier = 10/day; legacy = 50/day) |
-| Solcast calls to keep in reserve | `2` | Held back from the budget for retries |
+| Open-Meteo poll interval (minutes) | `20` | Live forecast refresh cadence |
+| Solcast daily API call budget | `10` | Hard cap (free tier = 10/day; legacy = 50/day) |
+| Solcast calls to keep in reserve | `0` | Held back from the budget for retries |
 
 ### Horizon file
 
-To attenuate periods blocked by nearby trees or buildings, point **Horizon mask file path** at a plain `.txt` file:
+To model obstructions from nearby trees or buildings, point **Horizon mask file path** at a plain `.txt` file describing how high the horizon rises at each compass bearing. Two formats are accepted:
 
-- **One obstruction-elevation value (in degrees) per line**, evenly spaced clockwise from north.
-- The angular step is inferred from the line count (36 lines = every 10°, 12 lines = every 30°). Blank lines are ignored.
+- **Sparse (recommended):** `azimuth<tab>elevation` pairs, one per line (tab, space, or comma separated), interpolated across the full circle. Azimuth is degrees clockwise from north; elevation is the obstruction's top, in degrees. Lines starting with `#` are comments; blank lines are ignored.
+- **Dense:** one elevation value per line, evenly spaced clockwise from north (36 lines = every 10°).
 
-For each 30-minute period the sun's azimuth and elevation are computed with `astral`; if the sun sits below the horizon profile, that period is attenuated to the diffuse-retention fraction. Leaving the path empty applies no mask.
+```
+# az_deg  horizon_elevation_deg
+0    0
+90   25
+140  53
+175  0     # clears to the south-west
+```
+
+For each 30-minute period the sun's azimuth and elevation are computed with `astral`, and the period is scaled by `transmission = clamp((sun_elevation − horizon(azimuth)) / shoulder, floor, 1)`, using the **Horizon soft-edge width** and **Horizon diffuse floor** options. Leaving the path empty applies no shading.
 
 ---
 
@@ -113,7 +124,7 @@ SolcastFusion exposes the **complete sensor roster** of `open_meteo_solar_foreca
 | Energy Current Hour | kWh | energy / measurement |
 | Energy Next Hour | kWh | energy / measurement |
 
-**Energy Production Today** carries a `watts` attribute — the full blended 30-minute curve as a `{ISO-8601 UTC datetime → watts}` dict — for downstream consumers that read the raw shape. (It's excluded from the recorder to keep the database lean.)
+**Energy Production Today** carries a `watts` attribute — the full 30-minute output curve (blend × horizon transmission) as a `{ISO-8601 UTC datetime → watts}` dict — for downstream consumers that read the raw shape. (It's excluded from the recorder to keep the database lean.)
 
 ### Diagnostic sensors
 
@@ -121,9 +132,9 @@ SolcastFusion exposes the **complete sensor roster** of `open_meteo_solar_foreca
 |--------|---------|
 | Solcast Calls Remaining | Calls left in today's budget |
 | Last Solcast Update | Timestamp of the most recent Solcast poll |
-| Correction Factor | Current daily-total scalar `K` (Solcast ÷ Open-Meteo) |
+| Daily Bias | Solcast⁄Open-Meteo daily-total ratio, applied to periods with no retained Solcast |
 | Source | `blended` or `om-only` (pure Open-Meteo fallback) |
-| Clamped Periods | % of periods where `k` hit the clamp — visibility into calibration stress |
+| Solcast Coverage | Fraction of daytime periods backed by a retained Solcast value |
 
 If **both** sources are unavailable, sensors report `unavailable` (never `0`), so downstream logic treats solar as *unknown* rather than *zero*.
 
