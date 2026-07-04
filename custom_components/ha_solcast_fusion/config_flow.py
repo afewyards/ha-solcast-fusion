@@ -13,8 +13,9 @@ from .const import (
     CONF_DC_W,
     CONF_DECAY_HALFLIFE_H,
     CONF_DECLINATION,
-    CONF_DIFFUSE,
     CONF_EFFICIENCY,
+    CONF_H_FLOOR,
+    CONF_H_SHOULDER,
     CONF_HORIZON_FILE,
     CONF_K_MAX,
     CONF_K_MIN,
@@ -25,6 +26,8 @@ from .const import (
     CONF_SOLCAST_KEY,
     CONF_SOLCAST_RESERVE,
     CONF_SOLCAST_SITE,
+    CONF_W_MAX,
+    CONF_W_MIN,
     DEFAULTS,
     DOMAIN,
 )
@@ -159,7 +162,12 @@ def _options_schema(opts: dict) -> vol.Schema:
     return vol.Schema(
         {
             vol.Optional(CONF_HORIZON_FILE, default=opts.get(CONF_HORIZON_FILE, "")): str,
-            vol.Optional(CONF_DIFFUSE, default=_d(CONF_DIFFUSE)): vol.All(vol.Coerce(float), vol.Range(0.0, 1.0)),
+            vol.Optional(CONF_H_FLOOR, default=_d(CONF_H_FLOOR)): vol.All(vol.Coerce(float), vol.Range(0.0, 1.0)),
+            vol.Optional(CONF_H_SHOULDER, default=_d(CONF_H_SHOULDER)): vol.All(
+                vol.Coerce(float), vol.Range(0.0, 30.0)
+            ),
+            vol.Optional(CONF_W_MAX, default=_d(CONF_W_MAX)): vol.All(vol.Coerce(float), vol.Range(0.0, 1.0)),
+            vol.Optional(CONF_W_MIN, default=_d(CONF_W_MIN)): vol.All(vol.Coerce(float), vol.Range(0.0, 1.0)),
             vol.Optional(CONF_K_MIN, default=_d(CONF_K_MIN)): vol.All(vol.Coerce(float), vol.Range(0.0, 5.0)),
             vol.Optional(CONF_K_MAX, default=_d(CONF_K_MAX)): vol.All(vol.Coerce(float), vol.Range(0.0, 5.0)),
             vol.Optional(

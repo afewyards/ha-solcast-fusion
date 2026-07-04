@@ -12,7 +12,6 @@ CONF_EFFICIENCY = "efficiency"
 CONF_SOLCAST_KEY = "solcast_key"
 CONF_SOLCAST_SITE = "solcast_site"
 CONF_HORIZON_FILE = "horizon_file"
-CONF_DIFFUSE = "diffuse"
 CONF_K_MIN = "k_min"
 CONF_K_MAX = "k_max"
 CONF_DECAY_HALFLIFE_H = "decay_halflife_h"
@@ -26,7 +25,6 @@ CONF_H_SHOULDER = "h_shoulder"
 CONF_H_FLOOR = "h_floor"
 
 DEFAULTS = {
-    CONF_DIFFUSE: 0.15,
     CONF_K_MIN: 0.5,
     CONF_K_MAX: 2.0,
     CONF_W_MAX: 0.9,

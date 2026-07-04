@@ -14,15 +14,11 @@ from custom_components.ha_solcast_fusion.const import (
     CONF_DC_W,
     CONF_DECAY_HALFLIFE_H,
     CONF_DECLINATION,
-    CONF_DIFFUSE,
     CONF_H_FLOOR,
-    CONF_H_SHOULDER,
     CONF_LAT,
     CONF_LON,
     CONF_SOLCAST_KEY,
     CONF_SOLCAST_SITE,
-    CONF_W_MAX,
-    CONF_W_MIN,
     DEFAULTS,
     DOMAIN,
 )
@@ -233,7 +229,7 @@ async def test_reconfigure_drops_stale_ac_w_when_new_site_has_none(hass):
 
 
 @pytest.mark.asyncio
-async def test_options_flow_round_trips_diffuse_and_decay(hass):
+async def test_options_flow_round_trips_h_floor_and_decay(hass):
     entry = MockConfigEntry(
         domain=DOMAIN,
         data={
@@ -254,16 +250,13 @@ async def test_options_flow_round_trips_diffuse_and_decay(hass):
 
     r = await hass.config_entries.options.async_init(entry.entry_id)
     assert r["step_id"] == "init"
-    # Not yet wired into the options schema (Task 8 rewires); exclude so the
-    # submission doesn't trip voluptuous PREVENT_EXTRA.
-    _NOT_YET_IN_OPTIONS = {CONF_W_MAX, CONF_W_MIN, CONF_H_SHOULDER, CONF_H_FLOOR}
-    new_opts = {k: v for k, v in DEFAULTS.items() if k not in _NOT_YET_IN_OPTIONS}
-    new_opts[CONF_DIFFUSE] = 0.2
+    new_opts = {k: v for k, v in DEFAULTS.items()}
+    new_opts[CONF_H_FLOOR] = 0.25
     new_opts[CONF_DECAY_HALFLIFE_H] = 0
     new_opts["horizon_file"] = ""
     r = await hass.config_entries.options.async_configure(r["flow_id"], new_opts)
     assert r["type"] == FlowResultType.CREATE_ENTRY
-    assert entry.options[CONF_DIFFUSE] == pytest.approx(0.2)
+    assert entry.options[CONF_H_FLOOR] == pytest.approx(0.25)
 
 
 @pytest.mark.asyncio
