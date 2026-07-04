@@ -38,7 +38,7 @@ SAMPLE_DATA = {
     "correction_factor": 0.95,
     "solcast_calls_remaining": 6,
     "last_solcast_update": datetime(2026, 6, 30, 9, 0, tzinfo=UTC),
-    "pct_periods_clamped": 0.05,
+    "pct_solcast_covered": 0.8,
 }
 
 
@@ -124,12 +124,18 @@ def test_diagnostic_sensors_have_entity_category():
         "last_solcast_update",
         "correction_factor",
         "source",
-        "pct_periods_clamped",
+        "pct_solcast_covered",
     }
     sensors = build_sensors(_coord(SAMPLE_DATA), "test_entry")
     for s in sensors:
         if s.entity_description.key in diag_keys:
             assert s.entity_description.entity_category == EntityCategory.DIAGNOSTIC
+
+
+def test_pct_solcast_covered_sensor_reads_data_key():
+    sensors = build_sensors(_coord(SAMPLE_DATA), "test_entry")
+    cov = next(s for s in sensors if s.entity_description.translation_key == "pct_solcast_covered")
+    assert cov.native_value == 0.8
 
 
 def test_energy_production_today_kwh_value():

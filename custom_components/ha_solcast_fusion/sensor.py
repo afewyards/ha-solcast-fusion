@@ -111,9 +111,9 @@ SENSOR_DESCRIPTIONS: tuple[SolcastFusionSensorDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SolcastFusionSensorDescription(
-        key="pct_periods_clamped",
-        translation_key="pct_periods_clamped",
-        data_key="pct_periods_clamped",
+        key="pct_solcast_covered",
+        translation_key="pct_solcast_covered",
+        data_key="pct_solcast_covered",
         state_class=SensorStateClass.MEASUREMENT,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),

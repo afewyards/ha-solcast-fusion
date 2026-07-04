@@ -84,13 +84,13 @@
         "name": "Last Solcast Update"
       },
       "correction_factor": {
-        "name": "Correction Factor"
+        "name": "Daily Bias"
       },
       "source": {
         "name": "Source"
       },
-      "pct_periods_clamped": {
-        "name": "Clamped Periods"
+      "pct_solcast_covered": {
+        "name": "Solcast Coverage"
       }
     }
   }
