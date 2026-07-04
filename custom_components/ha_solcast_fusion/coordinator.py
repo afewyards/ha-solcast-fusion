@@ -22,8 +22,9 @@ from .const import (
     CONF_DC_W,
     CONF_DECAY_HALFLIFE_H,
     CONF_DECLINATION,
-    CONF_DIFFUSE,
     CONF_EFFICIENCY,
+    CONF_H_FLOOR,
+    CONF_H_SHOULDER,
     CONF_K_MAX,
     CONF_K_MIN,
     CONF_LAT,
@@ -37,7 +38,7 @@ from .const import (
     CONF_W_MIN,
     DEFAULTS,
 )
-from .horizon import apply_mask
+from .horizon import apply_transmission
 from .solcast import fetch_forecast
 
 _LOGGER = logging.getLogger(__name__)
@@ -161,7 +162,8 @@ class OpenMeteoCoordinator(DataUpdateCoordinator):
         w_max = cfg.get(CONF_W_MAX, DEFAULTS[CONF_W_MAX])
         halflife_s = cfg.get(CONF_DECAY_HALFLIFE_H, DEFAULTS[CONF_DECAY_HALFLIFE_H]) * 3600
         cap = cfg.get(CONF_SOLCAST_CAP, DEFAULTS[CONF_SOLCAST_CAP])
-        diffuse = cfg.get(CONF_DIFFUSE, DEFAULTS[CONF_DIFFUSE])
+        shoulder = cfg.get(CONF_H_SHOULDER, DEFAULTS[CONF_H_SHOULDER])
+        floor = cfg.get(CONF_H_FLOOR, DEFAULTS[CONF_H_FLOOR])
 
         store = self._store
         retained = store.solcast_retained
@@ -169,7 +171,7 @@ class OpenMeteoCoordinator(DataUpdateCoordinator):
         fetched = {t: e["fetched"] for t, e in retained.items()}
 
         base = blend(om_curve, solcast, fetched, now, halflife_s, w_min, w_max, k_min, k_max)
-        masked = apply_mask(base, self._profile, lat, lon, diffuse)
+        masked = apply_transmission(base, self._profile, lat, lon, shoulder, floor)
         data = rollups(masked, now, self._tz)
 
         data["watts"] = {t.isoformat(): w for t, w in masked.items()}

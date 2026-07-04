@@ -318,3 +318,44 @@ async def test_cold_start_pre_sunrise_om_only():
     assert data["correction_factor"] == pytest.approx(1.0)
     assert store.quota_remaining(8) == 8
     assert data["watts"]
+
+
+# ---------------------------------------------------------------------------
+# Scenario 6 — Graded transmission: morning shaded, afternoon open
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_transmission_layer_shades_morning_not_afternoon():
+    from pathlib import Path
+
+    from custom_components.ha_solcast_fusion.horizon import load_horizon
+
+    seed = Path(__file__).resolve().parent / "fixtures" / "horizon_seed.txt"
+    profile = load_horizon(seed.read_text())
+
+    day = datetime.now(UTC).date()
+    east = datetime(day.year, day.month, day.day, 7, 0, tzinfo=UTC)   # az~90 el 25 -> floor
+    south = datetime(day.year, day.month, day.day, 13, 0, tzinfo=UTC)  # az~210 el 55 -> open
+    om = {east: 1000.0, south: 1000.0}
+    store = _make_store()
+    _inject_solcast(store, {east: 1000.0, south: 1000.0}, datetime.now(UTC))
+
+    hass = MagicMock()
+    coord = OpenMeteoCoordinator(hass, {**_BASE_CONFIG, "h_shoulder": 6.0, "h_floor": 0.18}, store, profile, UTC)
+
+    def fake_az(obs, dt):
+        return 90.0 if dt == east else 210.0
+
+    def fake_el(obs, dt):
+        return 25.0 if dt == east else 55.0
+
+    with (
+        patch("custom_components.ha_solcast_fusion.horizon.azimuth", fake_az),
+        patch("custom_components.ha_solcast_fusion.horizon.elevation", fake_el),
+    ):
+        data = coord._build_output_data(om, datetime.now(UTC))
+
+    w = data["watts"]
+    assert w[south.isoformat()] == pytest.approx(1000.0, abs=1.0)   # open afternoon
+    assert w[east.isoformat()] == pytest.approx(180.0, abs=5.0)     # floor-shaded morning

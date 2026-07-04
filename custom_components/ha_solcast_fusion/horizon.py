@@ -109,25 +109,3 @@ def apply_transmission(
     return result
 
 
-def is_shaded(profile: list[float], sun_az: float, sun_el: float) -> bool:
-    return sun_el < horizon_at(profile, sun_az)
-
-
-def apply_mask(
-    blended: dict,
-    profile: list[float] | None,
-    lat: float,
-    lon: float,
-    diffuse: float,
-) -> dict:
-    if profile is None:
-        return blended
-
-    obs = Observer(latitude=lat, longitude=lon)
-    result = {}
-    for bucket, value in blended.items():
-        dt = datetime.fromtimestamp(bucket, tz=UTC) if isinstance(bucket, (int, float)) else bucket
-        az = azimuth(obs, dt)
-        el = elevation(obs, dt)
-        result[bucket] = value * diffuse if is_shaded(profile, az, el) else value
-    return result

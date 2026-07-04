@@ -15,17 +15,6 @@ def test_horizon_at_interpolates():
     assert abs(h.horizon_at(prof, 45) - 10.0) < 1e-9  # halfway N→E
 
 
-def test_is_shaded():
-    prof = [30.0, 30.0, 30.0, 30.0]
-    assert h.is_shaded(prof, 90, 20) is True
-    assert h.is_shaded(prof, 90, 40) is False
-
-
-def test_apply_mask_none_is_identity():
-    curve = {1: 100.0}
-    assert h.apply_mask(curve, None, 52.0, 4.9, 0.15) == curve
-
-
 from datetime import datetime, UTC
 from pathlib import Path
 from unittest.mock import patch
