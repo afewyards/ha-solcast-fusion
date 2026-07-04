@@ -38,8 +38,8 @@ def test_transmission_linear_within_shoulder():
 
 def test_transmission_regression_fixture_real_horizon():
     prof = h.load_horizon(_SEED.read_text())
-    # az 136, clear, sun el ~54 -> ~0.57 (NOT the old 0.09 binary*diffuse)
-    assert h.transmission(54.0, h.horizon_at(prof, 136), 6.0, 0.18) == pytest.approx(0.57, abs=0.02)
+    # az 136, clear, sun el ~54 -> ~0.62 (re-fit; NOT the old 0.09 binary*diffuse)
+    assert h.transmission(54.0, h.horizon_at(prof, 136), 6.0, 0.18) == pytest.approx(0.62, abs=0.02)
     # az ~90, el 25 -> floor
     assert h.transmission(25.0, h.horizon_at(prof, 90), 6.0, 0.18) == pytest.approx(0.18)
     # az 210, el 55 -> fully open
@@ -65,4 +65,4 @@ def test_apply_transmission_multiplies_by_transmission():
         patch("custom_components.ha_solcast_fusion.horizon.elevation", return_value=54.0),
     ):
         out = h.apply_transmission({t: 1000.0}, prof, 52.455, 4.822, 6.0, 0.18)
-    assert out[t] == pytest.approx(570.0, abs=25.0)
+    assert out[t] == pytest.approx(617.0, abs=25.0)
