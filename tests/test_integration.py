@@ -359,3 +359,38 @@ async def test_transmission_layer_shades_morning_not_afternoon():
     w = data["watts"]
     assert w[south.isoformat()] == pytest.approx(1000.0, abs=1.0)   # open afternoon
     assert w[east.isoformat()] == pytest.approx(180.0, abs=5.0)     # floor-shaded morning
+
+
+# ---------------------------------------------------------------------------
+# E2E — replay 2026-07-04: no phantom trough
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_replay_20260704_no_phantom_trough():
+    """OM invents a late-morning crater; fresh retained Solcast erases it in the blend."""
+    day = datetime.now(UTC).date()
+
+    def b(h, m=0):
+        return datetime(day.year, day.month, day.day, h, m, tzinfo=UTC)
+
+    # Open-Meteo phantom crater at 10:00 (root cause 1): 200 W between 1200 W neighbours.
+    om = {b(9): 1200.0, b(9, 30): 1200.0, b(10): 200.0, b(10, 30): 200.0, b(12): 1200.0, b(12, 30): 1200.0}
+    # True shape (Solcast): no crater at 10:00.
+    sc = {b(9): 1000.0, b(9, 30): 1000.0, b(10): 1000.0, b(10, 30): 1000.0, b(12): 1200.0, b(12, 30): 1200.0}
+
+    now = datetime.now(UTC)
+    store = _make_store()
+    _inject_solcast(store, sc, now)  # fetched == now -> fresh -> w = w_max 0.9
+    coord = _make_coordinator(store)  # profile None: isolate the blend from transmission
+
+    data = coord._build_output_data(om, now)
+    w = data["watts"]
+
+    # Trough gone: 10:00 = 0.9*1000 + 0.1*200 = 920 W, not the 200 W OM crater.
+    assert w[b(10).isoformat()] == pytest.approx(920.0, abs=1.0)
+    assert w[b(10).isoformat()] > 4 * om[b(10)]
+    # Shape is Solcast-driven: the 10:00 bucket is within 15% of its 12:00 neighbour.
+    assert w[b(10).isoformat()] > 0.6 * w[b(12).isoformat()]
+    assert data["source"] == "blended"
+    assert data["today_kwh"] > 0
