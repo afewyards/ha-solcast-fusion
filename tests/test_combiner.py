@@ -12,57 +12,66 @@ def test_normalize_solcast_shifts_period_end_to_start_and_kw_to_w():
     assert out == {dt(10, 0): 2000.0}
 
 
-def test_compute_k_clamps():
-    assert c.compute_k(1000, 3000, 0.5, 2.0) == 2.0  # 3.0 clamped
-    assert c.compute_k(1000, 100, 0.5, 2.0) == 0.5  # 0.1 clamped
-    assert c.compute_k(1000, 1500, 0.5, 2.0) == 1.5
+def test_freshness_weight_fresh_returns_wmax():
+    assert c.freshness_weight(0.0, 7200, 0.5, 0.9) == 0.9
 
 
-def test_compute_k_guards_zero_negative_and_nonfinite():
-    assert c.compute_k(0.0, 1000, 0.5, 2.0) is None
-    assert c.compute_k(float("nan"), 1000, 0.5, 2.0) is None
-    assert c.compute_k(1000, -5, 0.5, 2.0) is None  # negative → guard, not clamp
+def test_freshness_weight_one_halflife_clamped_to_floor():
+    # 0.9 * 0.5^1 = 0.45 -> clamped up to w_min 0.5
+    assert c.freshness_weight(7200, 7200, 0.5, 0.9) == 0.5
 
 
-def test_decay_halflife():
-    assert c.decay_k(2.0, 0, 7200) == 2.0
-    assert abs(c.decay_k(2.0, 7200, 7200) - 1.5) < 1e-9  # one half-life → halfway to 1.0
+def test_freshness_weight_partial_decay():
+    # 0.9 * 0.5^0.5 = 0.6364, inside [0.5, 0.9]
+    assert abs(c.freshness_weight(3600, 7200, 0.5, 0.9) - 0.63640) < 1e-4
 
 
-def test_blend_scales_where_k_present():
-    om = {dt(12): 4000.0}
-    k = {dt(12): 1.5}
-    assert c.blend(om, k, {}, 0, 7200) == {dt(12): 6000.0}
+def test_freshness_weight_zero_halflife_holds_wmax():
+    assert c.freshness_weight(9999, 0, 0.5, 0.9) == 0.9
 
 
-def test_blend_substitutes_solcast_at_om_zero():
-    om = {dt(6): 0.0}
-    solc = {dt(6): 300.0}
-    assert c.blend(om, {}, solc, 0, 7200) == {dt(6): 300.0}
+def test_daily_bias_ratio_over_overlap():
+    om = {dt(10): 2000.0, dt(10, 30): 2000.0}
+    sc = {dt(10): 3000.0, dt(10, 30): 3000.0}
+    assert c.daily_bias(sc, om, 0.5, 2.0) == 1.5
 
 
-def test_blend_keeps_om_when_no_info():
-    om = {dt(13): 4000.0}
-    assert c.blend(om, {}, {}, 0, 7200) == {dt(13): 4000.0}
+def test_daily_bias_clamps_high_and_returns_one_without_overlap():
+    assert c.daily_bias({dt(10): 500.0}, {dt(10): 100.0}, 0.5, 2.0) == 2.0
+    assert c.daily_bias({dt(9): 500.0}, {dt(10): 100.0}, 0.5, 2.0) == 1.0
 
 
-def test_blend_substitutes_when_om_collapses_despite_stale_k():
-    # OM dropped to ~0 between polls but a k still exists for this bucket
-    om = {dt(15): 0.0}
-    k = {dt(15): 1.8}
-    solc = {dt(15): 250.0}
-    assert c.blend(om, k, solc, 0, 7200) == {dt(15): 250.0}
+def test_blend_fresh_solcast_dominates():
+    now = dt(12)
+    out = c.blend({dt(12): 1000.0}, {dt(12): 2000.0}, {dt(12): dt(12)}, now, 7200, 0.5, 0.9, 0.5, 2.0)
+    assert out[dt(12)] == 1900.0  # 0.9*2000 + 0.1*1000
 
 
-def test_decay_k_guards_zero_halflife_and_negative_age():
-    assert c.decay_k(2.0, 5, 0) == 2.0  # halflife 0 → no decay, no ZeroDivisionError
-    assert c.decay_k(2.0, -100, 7200) == 2.0  # negative age clamped to 0
+def test_blend_stale_solcast_floor_weight():
+    now = dt(12)
+    out = c.blend({dt(12): 1000.0}, {dt(12): 2000.0}, {dt(12): dt(6)}, now, 7200, 0.5, 0.9, 0.5, 2.0)
+    assert out[dt(12)] == 1500.0  # age 6h, w clamped to 0.5 -> 0.5*2000 + 0.5*1000
 
 
-def test_is_clamped_flags_out_of_band_ratio():
-    assert c.is_clamped(1000, 3000, 0.5, 2.0) is True  # raw 3.0 > 2.0
-    assert c.is_clamped(1000, 1500, 0.5, 2.0) is False
-    assert c.is_clamped(0.0, 1000, 0.5, 2.0) is False  # undefined → not "clamped"
+def test_blend_no_solcast_bucket_uses_om_times_bias():
+    now = dt(12)
+    om = {dt(10): 1000.0, dt(12): 1000.0}
+    sc = {dt(10): 1500.0}
+    fetched = {dt(10): dt(12)}
+    out = c.blend(om, sc, fetched, now, 7200, 0.5, 0.9, 0.5, 2.0)
+    assert out[dt(12)] == 1500.0  # daily_bias 1.5 * om 1000
+
+
+def test_blend_solcast_only_bucket_passthrough():
+    now = dt(12)
+    out = c.blend({}, {dt(7): 300.0}, {dt(7): dt(12)}, now, 7200, 0.5, 0.9, 0.5, 2.0)
+    assert out[dt(7)] == 300.0  # OM lacks bucket -> Solcast as-is
+
+
+def test_pct_solcast_covered_daytime_fraction():
+    om = {dt(3): 0.0, dt(10): 1000.0, dt(11): 1000.0}
+    assert c.pct_solcast_covered(om, {dt(10): 900.0}) == 0.5  # 1 of 2 daytime buckets
+    assert c.pct_solcast_covered({dt(3): 0.0}, {}) == 0.0     # no daytime buckets
 
 
 def test_resample_30min_interpolates_hourly_to_half_hourly():

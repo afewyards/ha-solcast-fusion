@@ -9,9 +9,8 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .combiner import (
     blend,
-    compute_k,
-    daily_scalar,
-    is_clamped,
+    daily_bias,
+    pct_solcast_covered,
     resample_30min,
     rollups,
 )
@@ -34,6 +33,8 @@ from .const import (
     CONF_SOLCAST_KEY,
     CONF_SOLCAST_RESERVE,
     CONF_SOLCAST_SITE,
+    CONF_W_MAX,
+    CONF_W_MIN,
     DEFAULTS,
 )
 from .horizon import apply_mask
@@ -90,7 +91,6 @@ class OpenMeteoCoordinator(DataUpdateCoordinator):
         self._profile = profile
         self._tz = tz
         self._held_curve: dict | None = None
-        self.pct_periods_clamped: float | None = None
 
     @property
     def held_curve(self) -> dict | None:
@@ -138,11 +138,11 @@ class OpenMeteoCoordinator(DataUpdateCoordinator):
             om_curve = self._held_curve
 
         store = self._store
-        k_factors = store.k_factors
+        retained = store.solcast_retained
 
-        # Neither OM nor Solcast has ever produced → sensors go unavailable
-        if om_curve is None and not k_factors:
-            _LOGGER.warning("No data available: om_curve=%s, k_factors=%s", om_curve, bool(k_factors))
+        # Neither OM nor Solcast has ever produced -> sensors go unavailable
+        if om_curve is None and not retained:
+            _LOGGER.warning("No data available: om_curve=%s, retained=%s", om_curve, bool(retained))
             return {}
 
         if om_curve is None:
@@ -157,25 +157,27 @@ class OpenMeteoCoordinator(DataUpdateCoordinator):
         lon = cfg[CONF_LON]
         k_min = cfg.get(CONF_K_MIN, DEFAULTS[CONF_K_MIN])
         k_max = cfg.get(CONF_K_MAX, DEFAULTS[CONF_K_MAX])
+        w_min = cfg.get(CONF_W_MIN, DEFAULTS[CONF_W_MIN])
+        w_max = cfg.get(CONF_W_MAX, DEFAULTS[CONF_W_MAX])
         halflife_s = cfg.get(CONF_DECAY_HALFLIFE_H, DEFAULTS[CONF_DECAY_HALFLIFE_H]) * 3600
         cap = cfg.get(CONF_SOLCAST_CAP, DEFAULTS[CONF_SOLCAST_CAP])
         diffuse = cfg.get(CONF_DIFFUSE, DEFAULTS[CONF_DIFFUSE])
 
         store = self._store
-        k_factors = store.k_factors
-        last_solcast_ts = store.last_solcast_ts
-        age_s = (now - last_solcast_ts).total_seconds() if last_solcast_ts else 0.0
+        retained = store.solcast_retained
+        solcast = {t: e["w"] for t, e in retained.items()}
+        fetched = {t: e["fetched"] for t, e in retained.items()}
 
-        blended = blend(om_curve, k_factors, store.last_solcast, age_s, halflife_s)
-        masked = apply_mask(blended, self._profile, lat, lon, diffuse)
+        base = blend(om_curve, solcast, fetched, now, halflife_s, w_min, w_max, k_min, k_max)
+        masked = apply_mask(base, self._profile, lat, lon, diffuse)
         data = rollups(masked, now, self._tz)
 
         data["watts"] = {t.isoformat(): w for t, w in masked.items()}
-        data["source"] = "blended" if k_factors else "om-only"
-        data["correction_factor"] = daily_scalar(om_curve, store.last_solcast, k_min, k_max)
+        data["source"] = "blended" if solcast else "om-only"
+        data["correction_factor"] = daily_bias(solcast, om_curve, k_min, k_max)
         data["solcast_calls_remaining"] = store.quota_remaining(cap)
-        data["last_solcast_update"] = last_solcast_ts
-        data["pct_periods_clamped"] = self.pct_periods_clamped
+        data["last_solcast_update"] = store.last_solcast_ts
+        data["pct_solcast_covered"] = pct_solcast_covered(om_curve, solcast)
 
         return data
 
@@ -280,8 +282,6 @@ class SolcastPoller:
             cfg = self._config
             cap = cfg.get(CONF_SOLCAST_CAP, DEFAULTS[CONF_SOLCAST_CAP])
             reserve = cfg.get(CONF_SOLCAST_RESERVE, DEFAULTS[CONF_SOLCAST_RESERVE])
-            k_min = cfg.get(CONF_K_MIN, DEFAULTS[CONF_K_MIN])
-            k_max = cfg.get(CONF_K_MAX, DEFAULTS[CONF_K_MAX])
 
             await self._store.reset_if_new_utc_day(now)
 
@@ -299,33 +299,15 @@ class SolcastPoller:
                 self._retry_after = now
                 return
 
-            om_curve = self._om_coord.held_curve or {}
-            k_factors: dict[datetime, float] = {}
-            clamped = 0
-            valid = 0
-
-            for t, sc_w in forecast.items():
-                om_w = om_curve.get(t)
-                if om_w is None:
-                    continue
-                k = compute_k(om_w, sc_w, k_min, k_max)
-                if k is not None:
-                    k_factors[t] = k
-                    valid += 1
-                    if is_clamped(om_w, sc_w, k_min, k_max):
-                        clamped += 1
-
-            self._om_coord.pct_periods_clamped = clamped / valid if valid else 0.0
-
             store = self._store
-            await store.save_poll_result(k_factors, forecast, now)
+            await store.merge_poll(forecast, now)
             await store.bump_quota(now)
             await store.save_now()
             await store.save_debounced()
 
             self._retry_after = None
 
-            data = self._om_coord._build_output_data(om_curve, now)
+            data = self._om_coord._build_output_data(self._om_coord.held_curve or {}, now)
             self._om_coord.async_set_updated_data(data)
         finally:
             self._poll_in_flight = False

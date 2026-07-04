@@ -189,11 +189,11 @@ async def _refresh(coord, watts=None, om_raises=False):
     return data
 
 
-def _inject_kfactors(store, om_watts, sc_watts):
-    k = {t: 1.2 for t in om_watts}
-    store._data["k_factors"] = {t.isoformat(): v for t, v in k.items()}
-    store._data["last_solcast"] = {t.isoformat(): v for t, v in sc_watts.items()}
-    return k
+def _inject_solcast(store, sc_watts, fetched):
+    store._data["solcast_retained"] = {
+        t.isoformat(): {"w": v, "fetched": fetched.isoformat()} for t, v in sc_watts.items()
+    }
+    store._data["last_solcast_ts"] = fetched.isoformat()
 
 
 # ---------------------------------------------------------------------------
@@ -207,7 +207,7 @@ async def test_normal_flow_blended():
     om_watts = _buckets(1000.0)
     sc_watts = _buckets(1200.0)
     store = _make_store()
-    _inject_kfactors(store, om_watts, sc_watts)
+    _inject_solcast(store, sc_watts, datetime.now(UTC))
     coord = _make_coordinator(store)
 
     data = await _refresh(coord, watts=om_watts)
@@ -262,7 +262,7 @@ async def test_om_down_after_prior_blend_stays_available():
     om_watts = _buckets(1000.0)
     sc_watts = _buckets(1200.0)
     store = _make_store()
-    _inject_kfactors(store, om_watts, sc_watts)
+    _inject_solcast(store, sc_watts, datetime.now(UTC))
     coord = _make_coordinator(store)
     coord._held_curve = resample_30min(om_watts)
 
@@ -314,7 +314,7 @@ async def test_cold_start_pre_sunrise_om_only():
     data = await _refresh(coord, watts=om_watts)
 
     assert data["source"] == "om-only"
-    assert store.k_factors == {}
+    assert store.solcast_retained == {}
     assert data["correction_factor"] == pytest.approx(1.0)
     assert store.quota_remaining(8) == 8
     assert data["watts"]

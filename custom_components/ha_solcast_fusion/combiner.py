@@ -1,17 +1,7 @@
-import math
 from datetime import datetime, timedelta, UTC
 
 EPS = 1.0  # watts
 HALF_BUCKET = timedelta(minutes=30)
-
-
-def daily_scalar(om: dict, solcast: dict, k_min: float, k_max: float) -> float:
-    overlap_keys = om.keys() & solcast.keys()
-    sum_om = sum(om[t] for t in overlap_keys)
-    if sum_om <= EPS:
-        return 1.0
-    sum_sc = sum(solcast[t] for t in overlap_keys)
-    return max(k_min, min(k_max, sum_sc / sum_om))
 
 
 def rollups(blended: dict, now: datetime, tz) -> dict:
@@ -90,36 +80,61 @@ def resample_30min(curve):
     return out
 
 
-def compute_k(om_w, solcast_w, k_min, k_max):
-    if not math.isfinite(om_w) or not math.isfinite(solcast_w) or om_w <= EPS or solcast_w < 0:
-        return None
-    return max(k_min, min(k_max, solcast_w / om_w))
-
-
-def is_clamped(om_w, solcast_w, k_min, k_max):
-    if om_w <= EPS or solcast_w < 0 or not math.isfinite(om_w) or not math.isfinite(solcast_w):
-        return False
-    raw = solcast_w / om_w
-    return raw < k_min or raw > k_max
-
-
-def decay_k(k, age_s, halflife_s):
+def freshness_weight(age_s: float, halflife_s: float, w_min: float, w_max: float) -> float:
     if halflife_s <= 0:
-        return k  # no-decay / divide-by-zero guard
-    age_s = max(0.0, age_s)  # clock-skew guard
-    return 1.0 + (k - 1.0) * 0.5 ** (age_s / halflife_s)
+        w = w_max
+    else:
+        w = w_max * 0.5 ** (max(0.0, age_s) / halflife_s)
+    return max(w_min, min(w_max, w))
 
 
-def blend(om, k_by_bucket, solcast, age_s, halflife_s):
-    out = {}
-    for t, om_w in om.items():
-        if t in k_by_bucket and om_w > EPS:  # collapsed-OM falls through
-            out[t] = om_w * decay_k(k_by_bucket[t], age_s, halflife_s)
-        elif om_w <= EPS and t in solcast:
-            out[t] = solcast[t]  # OM≈0 -> substitute Solcast
+def daily_bias(solcast: dict, om: dict, lo: float, hi: float) -> float:
+    """Sum(solcast)/Sum(om) over overlapping buckets, clamped; 1.0 without overlap."""
+    keys = solcast.keys() & om.keys()
+    sum_om = sum(om[t] for t in keys)
+    if sum_om <= EPS:
+        return 1.0
+    sum_sc = sum(solcast[t] for t in keys)
+    return max(lo, min(hi, sum_sc / sum_om))
+
+
+def blend(
+    om: dict,
+    solcast: dict,
+    fetched: dict,
+    now: datetime,
+    halflife_s: float,
+    w_min: float,
+    w_max: float,
+    bias_lo: float,
+    bias_hi: float,
+) -> dict:
+    """Freshness-weighted Solcast/OM blend.
+
+    Solcast bucket + OM bucket -> w*solcast + (1-w)*om, w decaying with fetch age.
+    Solcast bucket, no OM      -> solcast as-is (OM lacks the shoulder bucket).
+    No Solcast bucket          -> om * daily_bias (today's magnitude calibration).
+    """
+    bias = daily_bias(solcast, om, bias_lo, bias_hi)
+    out: dict = {}
+    for t in om.keys() | solcast.keys():
+        sc = solcast.get(t)
+        om_w = om.get(t)
+        if sc is not None:
+            if om_w is None:
+                out[t] = sc
+            else:
+                age_s = (now - fetched[t]).total_seconds() if t in fetched else 0.0
+                w = freshness_weight(age_s, halflife_s, w_min, w_max)
+                out[t] = w * sc + (1.0 - w) * om_w
         else:
-            out[t] = om_w
-    for t, sc_w in solcast.items():  # shoulder buckets OM lacks
-        if t not in out:
-            out[t] = sc_w
+            out[t] = (om_w if om_w is not None else 0.0) * bias
     return out
+
+
+def pct_solcast_covered(om: dict, solcast: dict) -> float:
+    """Fraction of daytime (OM>EPS) buckets that have a retained Solcast value."""
+    day = [t for t, w in om.items() if w > EPS]
+    if not day:
+        return 0.0
+    return sum(1 for t in day if t in solcast) / len(day)
