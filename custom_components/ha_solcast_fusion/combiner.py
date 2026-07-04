@@ -133,16 +133,12 @@ def blend(
 
 
 def pct_solcast_covered(om: dict, solcast: dict) -> float:
-    """Fraction of daytime buckets that have a retained Solcast value.
+    """Fraction of daytime (OM>EPS) buckets that have a retained Solcast value.
 
-    Daytime buckets are normally derived from OM (OM > EPS). If OM has no
-    signal (e.g. an outage collapses the curve to {}), fall back to
-    Solcast's own above-EPS buckets so an OM outage doesn't zero out
-    coverage that Solcast still fully has.
+    During an OM outage (no daytime OM buckets), fall back to Solcast
+    presence: full coverage if Solcast is driving the forecast, else zero.
     """
     day = [t for t, w in om.items() if w > EPS]
     if not day:
-        day = [t for t, w in solcast.items() if w > EPS]
-    if not day:
-        return 0.0
+        return 1.0 if solcast else 0.0
     return sum(1 for t in day if t in solcast) / len(day)

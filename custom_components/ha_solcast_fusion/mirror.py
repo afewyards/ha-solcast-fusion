@@ -12,7 +12,6 @@ from .const import (
     CONF_LON,
     CONF_SOLCAST_CAP,
     CONF_SOLCAST_KEY,
-    CONF_SOLCAST_RESERVE,
     CONF_SOLCAST_SITE,
     DEFAULTS,
 )
@@ -70,9 +69,8 @@ async def async_mirror_check(hass, entry, config, store, session, coordinator) -
         return
 
     cap = config.get(CONF_SOLCAST_CAP, DEFAULTS[CONF_SOLCAST_CAP])
-    reserve = config.get(CONF_SOLCAST_RESERVE, DEFAULTS[CONF_SOLCAST_RESERVE])
-    if store.quota_remaining(cap) <= reserve:
-        _LOGGER.debug("Mirror: quota exhausted (cap=%s reserve=%s); skipping site sync", cap, reserve)
+    if store.quota_remaining(cap) <= 0:
+        _LOGGER.debug("Mirror: no Solcast quota remaining today; deferring site sync")
         return
 
     try:
