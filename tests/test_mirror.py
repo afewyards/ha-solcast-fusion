@@ -40,12 +40,13 @@ BASE_DATA = {
 }
 
 
-def _fake_store(mirror_sync_date=None):
+def _fake_store(mirror_sync_date=None, quota_remaining=10):
     store = MagicMock()
     store.reset_if_new_utc_day = AsyncMock()
     store.mirror_sync_date = mirror_sync_date
     store.mark_mirror_synced = AsyncMock()
     store.bump_quota = AsyncMock()
+    store.quota_remaining = MagicMock(return_value=quota_remaining)
     return store
 
 
@@ -134,6 +135,28 @@ async def test_synced_over_7_days_ago_fetches_again():
 async def test_successful_fetch_counts_against_quota():
     hass, entry, coord = _fake_env()
     store = _fake_store()  # never synced
+    with patch("custom_components.ha_solcast_fusion.mirror.fetch_sites", new=AsyncMock(return_value=[SITE_SAME])):
+        await async_mirror_check(hass, entry, dict(BASE_DATA), store, MagicMock(), coord)
+    store.bump_quota.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_quota_exhausted_skips_fetch():
+    """Mid-day restart with quota already spent: mirror must not breach the cap."""
+    hass, entry, coord = _fake_env()
+    store = _fake_store(quota_remaining=0)  # cap - reserve headroom exhausted
+    fetch = AsyncMock()
+    with patch("custom_components.ha_solcast_fusion.mirror.fetch_sites", fetch):
+        await async_mirror_check(hass, entry, dict(BASE_DATA), store, MagicMock(), coord)
+    fetch.assert_not_called()
+    store.bump_quota.assert_not_awaited()
+    store.mark_mirror_synced.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_quota_available_allows_fetch():
+    hass, entry, coord = _fake_env()
+    store = _fake_store(quota_remaining=1)  # exactly one call of headroom left
     with patch("custom_components.ha_solcast_fusion.mirror.fetch_sites", new=AsyncMock(return_value=[SITE_SAME])):
         await async_mirror_check(hass, entry, dict(BASE_DATA), store, MagicMock(), coord)
     store.bump_quota.assert_awaited_once()

@@ -10,8 +10,11 @@ from .const import (
     CONF_DECLINATION,
     CONF_LAT,
     CONF_LON,
+    CONF_SOLCAST_CAP,
     CONF_SOLCAST_KEY,
+    CONF_SOLCAST_RESERVE,
     CONF_SOLCAST_SITE,
+    DEFAULTS,
 )
 from .solcast import (
     SolcastError,
@@ -64,6 +67,12 @@ async def async_mirror_check(hass, entry, config, store, session, coordinator) -
     await store.reset_if_new_utc_day(now)
     since = _days_since(store.mirror_sync_date, now)
     if since is not None and since < _MIRROR_INTERVAL_DAYS:
+        return
+
+    cap = config.get(CONF_SOLCAST_CAP, DEFAULTS[CONF_SOLCAST_CAP])
+    reserve = config.get(CONF_SOLCAST_RESERVE, DEFAULTS[CONF_SOLCAST_RESERVE])
+    if store.quota_remaining(cap) <= reserve:
+        _LOGGER.debug("Mirror: quota exhausted (cap=%s reserve=%s); skipping site sync", cap, reserve)
         return
 
     try:
