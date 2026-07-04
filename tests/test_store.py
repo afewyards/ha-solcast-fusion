@@ -180,3 +180,74 @@ async def test_mirror_sync_date_round_trips_from_stored():
     store, _ = _make_store(stored=saved)
     await store.load()
     assert store.mirror_sync_date == "2026-06-29"
+
+
+from datetime import timedelta
+
+RT = datetime(2026, 6, 30, 12, 0, tzinfo=UTC)
+
+
+@pytest.mark.asyncio
+async def test_merge_poll_adds_buckets_with_fetched_stamp():
+    store, _ = _make_store()
+    fc = {RT: 1500.0, RT + timedelta(minutes=30): 1600.0}
+    await store.merge_poll(fc, RT)
+    r = store.solcast_retained
+    assert r[RT]["w"] == 1500.0
+    assert r[RT]["fetched"] == RT
+
+
+@pytest.mark.asyncio
+async def test_merge_poll_keeps_prior_and_updates_overlap():
+    store, _ = _make_store()
+    t1 = datetime(2026, 6, 30, 10, 0, tzinfo=UTC)
+    t2 = datetime(2026, 6, 30, 11, 0, tzinfo=UTC)
+    await store.merge_poll({t1: 1000.0}, t1)
+    await store.merge_poll({t1: 1200.0, t2: 2000.0}, t2)
+    r = store.solcast_retained
+    assert r[t1]["w"] == 1200.0
+    assert r[t1]["fetched"] == t2  # overlapping bucket re-stamped
+    assert r[t2]["w"] == 2000.0
+
+
+@pytest.mark.asyncio
+async def test_merge_poll_expires_buckets_older_than_48h():
+    store, _ = _make_store()
+    old = datetime(2026, 6, 28, 10, 0, tzinfo=UTC)  # > 48 h before `new`
+    new = datetime(2026, 6, 30, 12, 0, tzinfo=UTC)
+    await store.merge_poll({old: 500.0}, old)
+    await store.merge_poll({new: 1000.0}, new)
+    r = store.solcast_retained
+    assert old not in r
+    assert new in r
+
+
+@pytest.mark.asyncio
+async def test_migration_upgrades_flat_last_solcast_to_retained():
+    saved = {
+        "last_solcast": {"2026-06-30T10:00:00+00:00": 1500.0},
+        "k_factors": {"2026-06-30T10:00:00+00:00": 1.2},
+        "last_solcast_ts": "2026-06-30T09:44:00+00:00",
+        "quota_used": 3,
+    }
+    store, _ = _make_store(stored=saved)
+    await store.load()
+    key = datetime.fromisoformat("2026-06-30T10:00:00+00:00")
+    r = store.solcast_retained
+    assert r[key]["w"] == 1500.0
+    assert r[key]["fetched"] == datetime.fromisoformat("2026-06-30T09:44:00+00:00")
+    assert store._data["schema_version"] == 2
+
+
+@pytest.mark.asyncio
+async def test_migration_is_idempotent_for_v2_data():
+    saved = {
+        "solcast_retained": {"2026-06-30T10:00:00+00:00": {"w": 1500.0, "fetched": "2026-06-30T09:44:00+00:00"}},
+        "schema_version": 2,
+        "quota_used": 1,
+    }
+    store, _ = _make_store(stored=saved)
+    await store.load()
+    key = datetime.fromisoformat("2026-06-30T10:00:00+00:00")
+    assert store.solcast_retained[key]["w"] == 1500.0
+    assert store._data["quota_used"] == 1
