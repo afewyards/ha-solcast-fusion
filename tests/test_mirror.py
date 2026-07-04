@@ -45,6 +45,7 @@ def _fake_store(mirror_sync_date=None):
     store.reset_if_new_utc_day = AsyncMock()
     store.mirror_sync_date = mirror_sync_date
     store.mark_mirror_synced = AsyncMock()
+    store.bump_quota = AsyncMock()
     return store
 
 
@@ -103,17 +104,39 @@ async def test_unchanged_geometry_no_update():
 
 
 @pytest.mark.asyncio
-async def test_already_synced_today_skips_fetch():
+async def test_synced_within_7_days_skips_fetch():
+    from datetime import datetime, timedelta
+
+    recent = (datetime.now(UTC).date() - timedelta(days=3)).isoformat()
     hass, entry, coord = _fake_env()
-    store = _fake_store(mirror_sync_date="2026-07-01")
+    store = _fake_store(mirror_sync_date=recent)
     fetch = AsyncMock()
-    with (
-        patch("custom_components.ha_solcast_fusion.mirror._utc_today", return_value="2026-07-01"),
-        patch("custom_components.ha_solcast_fusion.mirror.fetch_sites", fetch),
-    ):
+    with patch("custom_components.ha_solcast_fusion.mirror.fetch_sites", fetch):
         await async_mirror_check(hass, entry, dict(BASE_DATA), store, MagicMock(), coord)
     fetch.assert_not_called()
-    store.mark_mirror_synced.assert_not_awaited()
+    store.bump_quota.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_synced_over_7_days_ago_fetches_again():
+    from datetime import datetime, timedelta
+
+    stale = (datetime.now(UTC).date() - timedelta(days=8)).isoformat()
+    hass, entry, coord = _fake_env()
+    store = _fake_store(mirror_sync_date=stale)
+    with patch("custom_components.ha_solcast_fusion.mirror.fetch_sites", new=AsyncMock(return_value=[SITE_SAME])):
+        await async_mirror_check(hass, entry, dict(BASE_DATA), store, MagicMock(), coord)
+    store.bump_quota.assert_awaited_once()
+    store.mark_mirror_synced.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_successful_fetch_counts_against_quota():
+    hass, entry, coord = _fake_env()
+    store = _fake_store()  # never synced
+    with patch("custom_components.ha_solcast_fusion.mirror.fetch_sites", new=AsyncMock(return_value=[SITE_SAME])):
+        await async_mirror_check(hass, entry, dict(BASE_DATA), store, MagicMock(), coord)
+    store.bump_quota.assert_awaited_once()
 
 
 @pytest.mark.asyncio

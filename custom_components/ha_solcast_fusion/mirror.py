@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, UTC
+from datetime import date, datetime, UTC
 
 from .const import (
     CONF_AC_W,
@@ -32,9 +32,17 @@ _MIRROR_KEYS = (
 )
 _LATLON = (CONF_LAT, CONF_LON)
 
+_MIRROR_INTERVAL_DAYS = 7
 
-def _utc_today(now: datetime) -> str:
-    return now.astimezone(UTC).date().isoformat()
+
+def _days_since(date_str: str | None, now: datetime) -> int | None:
+    if not date_str:
+        return None
+    try:
+        d = date.fromisoformat(date_str)
+    except ValueError:
+        return None
+    return (now.astimezone(UTC).date() - d).days
 
 
 def geometry_differs(current: dict, new: dict) -> bool:
@@ -54,7 +62,8 @@ async def async_mirror_check(hass, entry, config, store, session, coordinator) -
     """Once/day: pull the Solcast site record and mirror geometry into config."""
     now = datetime.now(tz=UTC)
     await store.reset_if_new_utc_day(now)
-    if store.mirror_sync_date == _utc_today(now):
+    since = _days_since(store.mirror_sync_date, now)
+    if since is not None and since < _MIRROR_INTERVAL_DAYS:
         return
 
     try:
@@ -63,6 +72,7 @@ async def async_mirror_check(hass, entry, config, store, session, coordinator) -
         _LOGGER.debug("Mirror: Solcast sites fetch failed; will retry", exc_info=True)
         return
 
+    await store.bump_quota(now)
     await store.mark_mirror_synced(now)
 
     rid = entry.data.get(CONF_SOLCAST_SITE)
