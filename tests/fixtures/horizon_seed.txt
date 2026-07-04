@@ -1,0 +1,19 @@
+# SolcastFusion seeded horizon-elevation profile
+# Derived from 7-day actual/Solcast estimated_actuals ratio (lat 52.455, lon 4.822)
+# az_deg  horizon_elevation_deg
+0	0
+60	15
+70	20
+80	23
+90	25
+100	30
+110	38
+120	43
+130	47
+140	53
+150	56
+160	58
+170	60
+183	0
+300	0
+359	0

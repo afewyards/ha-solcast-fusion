@@ -15,7 +15,7 @@ def load_horizon(text: str) -> list[float] | None:
     - Dense format: one elevation per line (evenly spaced azimuths)
     - Sparse format: "azimuth<tab>elevation" pairs, interpolated to 360 values
     """
-    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    lines = [line.strip() for line in text.splitlines() if line.strip() and not line.lstrip().startswith("#")]
     if not lines:
         return None
 
@@ -80,6 +80,33 @@ def horizon_at(profile: list[float], azimuth_deg: float) -> float:
     hi = (lo + 1) % n
     frac = idx_f - math.floor(idx_f)
     return profile[lo] + frac * (profile[hi] - profile[lo])
+
+
+def transmission(sun_el: float, h_az: float, shoulder: float, floor: float) -> float:
+    """Graded beam transmission: 0->floor below the horizon, ramping to 1 over `shoulder` deg."""
+    if shoulder <= 0:
+        return 1.0 if sun_el >= h_az else floor
+    return max(floor, min(1.0, (sun_el - h_az) / shoulder))
+
+
+def apply_transmission(
+    curve: dict,
+    profile: list[float] | None,
+    lat: float,
+    lon: float,
+    shoulder: float,
+    floor: float,
+) -> dict:
+    if profile is None:
+        return curve
+    obs = Observer(latitude=lat, longitude=lon)
+    result: dict = {}
+    for bucket, value in curve.items():
+        dt = datetime.fromtimestamp(bucket, tz=UTC) if isinstance(bucket, (int, float)) else bucket
+        az = azimuth(obs, dt)
+        el = elevation(obs, dt)
+        result[bucket] = value * transmission(el, horizon_at(profile, az), shoulder, floor)
+    return result
 
 
 def is_shaded(profile: list[float], sun_az: float, sun_el: float) -> bool:
