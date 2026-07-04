@@ -74,6 +74,16 @@ def test_pct_solcast_covered_daytime_fraction():
     assert c.pct_solcast_covered({dt(3): 0.0}, {}) == 0.0     # no daytime buckets
 
 
+def test_pct_solcast_covered_falls_back_to_solcast_during_om_outage():
+    # OM outage collapses the curve to {}; Solcast still holds fresh retained data.
+    sc = {dt(10): 900.0, dt(11): 950.0}
+    assert c.pct_solcast_covered({}, sc) == 1.0
+
+
+def test_pct_solcast_covered_zero_when_both_om_and_solcast_empty():
+    assert c.pct_solcast_covered({}, {}) == 0.0
+
+
 def test_resample_30min_interpolates_hourly_to_half_hourly():
     hourly = {dt(10): 1000.0, dt(11): 2000.0}
     out = c.resample_30min(hourly)
