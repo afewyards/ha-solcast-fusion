@@ -20,15 +20,23 @@ CONF_OM_INTERVAL_MIN = "om_interval_min"
 CONF_SOLCAST_CAP = "solcast_cap"
 CONF_SOLCAST_RESERVE = "solcast_reserve"
 CONF_SETUP_QUOTA_CALLS = "setup_quota_calls"
+CONF_W_MAX = "w_max"
+CONF_W_MIN = "w_min"
+CONF_H_SHOULDER = "h_shoulder"
+CONF_H_FLOOR = "h_floor"
 
 DEFAULTS = {
     CONF_DIFFUSE: 0.15,
     CONF_K_MIN: 0.5,
     CONF_K_MAX: 2.0,
+    CONF_W_MAX: 0.9,
+    CONF_W_MIN: 0.5,
+    CONF_H_SHOULDER: 6.0,
+    CONF_H_FLOOR: 0.18,
     CONF_DECAY_HALFLIFE_H: 2,
     CONF_OM_INTERVAL_MIN: 20,
-    CONF_SOLCAST_CAP: 8,
-    CONF_SOLCAST_RESERVE: 2,
+    CONF_SOLCAST_CAP: 10,
+    CONF_SOLCAST_RESERVE: 0,
     CONF_DAMP_AM: 0.0,
     CONF_DAMP_PM: 0.0,
     CONF_EFFICIENCY: 0.93,

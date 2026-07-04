@@ -15,10 +15,14 @@ from custom_components.ha_solcast_fusion.const import (
     CONF_DECAY_HALFLIFE_H,
     CONF_DECLINATION,
     CONF_DIFFUSE,
+    CONF_H_FLOOR,
+    CONF_H_SHOULDER,
     CONF_LAT,
     CONF_LON,
     CONF_SOLCAST_KEY,
     CONF_SOLCAST_SITE,
+    CONF_W_MAX,
+    CONF_W_MIN,
     DEFAULTS,
     DOMAIN,
 )
@@ -250,7 +254,10 @@ async def test_options_flow_round_trips_diffuse_and_decay(hass):
 
     r = await hass.config_entries.options.async_init(entry.entry_id)
     assert r["step_id"] == "init"
-    new_opts = {k: v for k, v in DEFAULTS.items()}
+    # Not yet wired into the options schema (Task 8 rewires); exclude so the
+    # submission doesn't trip voluptuous PREVENT_EXTRA.
+    _NOT_YET_IN_OPTIONS = {CONF_W_MAX, CONF_W_MIN, CONF_H_SHOULDER, CONF_H_FLOOR}
+    new_opts = {k: v for k, v in DEFAULTS.items() if k not in _NOT_YET_IN_OPTIONS}
     new_opts[CONF_DIFFUSE] = 0.2
     new_opts[CONF_DECAY_HALFLIFE_H] = 0
     new_opts["horizon_file"] = ""
