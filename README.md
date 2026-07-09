@@ -12,6 +12,8 @@ The goal: **Solcast-grade accuracy at Open-Meteo refresh rates**, while staying 
 
 SolcastFusion is a **drop-in replacement** for the official `open_meteo_solar_forecast` integration — it mirrors the same sensor keys, units, and `watts` attribute, so any consumer (dashboards, energy automations, EV/battery smart-charging) works unchanged.
 
+![SolcastFusion forecast (dashed line) versus actual solar production (bars) in the Home Assistant energy dashboard](docs/images/solar-production.png)
+
 ---
 
 ## How it works
